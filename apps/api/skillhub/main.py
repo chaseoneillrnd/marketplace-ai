@@ -1,0 +1,27 @@
+"""FastAPI application factory."""
+
+from __future__ import annotations
+
+from fastapi import FastAPI
+
+from skillhub.config import Settings
+from skillhub.routers import auth, health
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create and configure the FastAPI application."""
+    if settings is None:
+        settings = Settings()
+
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.app_version,
+        debug=settings.debug,
+    )
+    app.state.settings = settings
+    app.include_router(health.router)
+    app.include_router(auth.router)
+    return app
+
+
+app = create_app()
