@@ -16,6 +16,9 @@ dev = [
   "mypy",
 ]
 
+[tool.setuptools.packages.find]
+include = ["skillhub_db*"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 120
