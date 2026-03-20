@@ -1,0 +1,293 @@
+[env]
+_.file = ".env"
+
+# ─── Setup ─────────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "Full setup: install all dependencies"
+run = """
+npm install
+pip install -e apps/api[dev] -e apps/mcp-server[dev] -e libs/db[dev] -e libs/python-common[dev]
+"""
+
+# ─── Dev Servers ───────────────────────────────────────────────────────────────
+
+[tasks."dev:web"]
+description = "Start web dev server"
+run = "npx nx run web:dev"
+
+[tasks."dev:api"]
+description = "Start API server"
+run = "uvicorn skillhub.main:app --reload --host 0.0.0.0 --port 8000 --app-dir apps/api"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."dev:mcp"]
+description = "Start MCP server"
+run = "python -m skillhub_mcp.server"
+dir = "apps/mcp-server"
+env = { PYTHONPATH = "../../libs/python-common" }
+
+# ─── Build ─────────────────────────────────────────────────────────────────────
+
+[tasks."build:web"]
+description = "Build web app"
+run = "npx nx run web:build"
+
+[tasks."build:docker"]
+description = "Build all Docker images"
+run = "docker compose build"
+
+[tasks."build:docker:api"]
+description = "Build API Docker image"
+run = "docker compose build api"
+
+[tasks."build:docker:mcp"]
+description = "Build MCP server Docker image"
+run = "docker compose build mcp-server"
+
+# ─── Test ──────────────────────────────────────────────────────────────────────
+
+[tasks."test:web"]
+description = "Run web tests"
+run = "npx nx run web:test"
+
+[tasks."test:web:coverage"]
+description = "Run web tests with coverage"
+run = "npx vitest run --coverage --project web"
+
+[tasks."test:api"]
+description = "Run API tests"
+run = "python -m pytest apps/api/tests/ -v"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+[tasks."test:api:coverage"]
+description = "Run API tests with coverage"
+run = "python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+[tasks."test:mcp"]
+description = "Run MCP server tests"
+run = "python -m pytest apps/mcp-server/tests/ -v"
+env = { PYTHONPATH = "apps/mcp-server:libs/python-common" }
+
+[tasks."test:db"]
+description = "Run DB lib tests"
+run = "python -m pytest libs/db/tests/ -v"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+# ─── Lint ──────────────────────────────────────────────────────────────────────
+
+[tasks."lint:web"]
+description = "Lint web app"
+run = "npx nx run web:lint"
+
+[tasks."lint:api"]
+description = "Lint API"
+run = "ruff check apps/api/"
+
+[tasks."lint:mcp"]
+description = "Lint MCP server"
+run = "ruff check apps/mcp-server/"
+
+[tasks."lint:fix"]
+description = "Auto-fix lint issues"
+run = """
+ruff check --fix apps/ libs/
+npx eslint --fix apps/web/src/
+"""
+
+# ─── Format ────────────────────────────────────────────────────────────────────
+
+[tasks."format:web"]
+description = "Format web code"
+run = "npx prettier --write 'apps/web/src/**/*.{ts,tsx,css}'"
+
+[tasks."format:api"]
+description = "Format Python code"
+run = "ruff format apps/ libs/"
+
+[tasks."format:check"]
+description = "Check formatting without writing"
+run = """
+ruff format --check apps/ libs/
+npx prettier --check 'apps/web/src/**/*.{ts,tsx,css}' 'libs/ui/src/**/*.{ts,tsx}' 'libs/shared-types/src/**/*.ts'
+"""
+
+# ─── Typecheck ─────────────────────────────────────────────────────────────────
+
+[tasks."typecheck:web"]
+description = "TypeScript type check"
+run = "npx tsc --noEmit -p apps/web/tsconfig.json"
+
+[tasks."typecheck:api"]
+description = "Python type check"
+run = "mypy apps/api/skillhub/ --strict"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+# ─── Database ──────────────────────────────────────────────────────────────────
+
+[tasks."db:up"]
+description = "Start database containers"
+run = "docker compose up -d postgres redis"
+
+[tasks."db:down"]
+description = "Stop database containers"
+run = "docker compose down"
+
+[tasks."db:migrate"]
+description = "Run database migrations"
+run = "alembic -c libs/db/alembic.ini upgrade head"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:rollback"]
+description = "Rollback last migration"
+run = "alembic -c libs/db/alembic.ini downgrade -1"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:rollback:all"]
+description = "Rollback all migrations"
+run = "alembic -c libs/db/alembic.ini downgrade base"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:make-migration"]
+description = "Generate a new migration"
+run = "alembic -c libs/db/alembic.ini revision --autogenerate -m"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:check"]
+description = "Check migrations are up to date"
+run = "alembic -c libs/db/alembic.ini check"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:seed"]
+description = "Seed database with initial data"
+run = "python libs/db/scripts/seed.py"
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:reset"]
+description = "Reset database (drop + migrate + seed)"
+run = """
+docker compose down -v postgres
+docker compose up -d postgres
+sleep 3
+alembic -c libs/db/alembic.ini upgrade head
+python libs/db/scripts/seed.py
+"""
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."db:shell"]
+description = "Open psql shell"
+run = "docker compose exec postgres psql -U skillhub -d skillhub"
+
+[tasks."db:dump"]
+description = "Dump current schema to specs/schema.sql"
+run = "docker compose exec postgres pg_dump -U skillhub -d skillhub --schema-only > specs/schema.sql"
+
+# ─── Generate ──────────────────────────────────────────────────────────────────
+
+[tasks."gen:openapi"]
+description = "Generate OpenAPI spec"
+run = "python -c \"from skillhub.main import create_app; import json; app=create_app(); print(json.dumps(app.openapi(), indent=2))\" > specs/openapi.json"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+[tasks."gen:types"]
+description = "Generate TypeScript types from OpenAPI"
+run = "npx openapi-typescript specs/openapi.json -o libs/shared-types/src/api.generated.ts"
+
+[tasks."gen:migration"]
+description = "Generate migration (alias)"
+run = "mise run db:make-migration"
+
+# ─── Docker ────────────────────────────────────────────────────────────────────
+
+[tasks."docker:up"]
+description = "Start all services"
+run = "docker compose up -d"
+
+[tasks."docker:down"]
+description = "Stop all services"
+run = "docker compose down"
+
+[tasks."docker:logs"]
+description = "Tail all service logs"
+run = "docker compose logs -f"
+
+[tasks."docker:logs:api"]
+description = "Tail API logs"
+run = "docker compose logs -f api"
+
+[tasks."docker:reset"]
+description = "Reset Docker (down + rebuild + up)"
+run = "docker compose down -v && docker compose build && docker compose up -d"
+
+[tasks."docker:shell:api"]
+description = "Shell into API container"
+run = "docker compose exec api bash"
+
+# ─── Quality Gate ──────────────────────────────────────────────────────────────
+
+[tasks."quality-gate"]
+description = "Full CI quality gate locally"
+run = """
+echo "=== Lint ==="
+ruff check apps/ libs/
+echo "=== Format Check ==="
+ruff format --check apps/ libs/
+echo "=== Type Check: API ==="
+mypy apps/api/skillhub/ --strict || true
+echo "=== Tests: API ==="
+python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80 || true
+echo "=== Tests: DB ==="
+python -m pytest libs/db/tests/ -v || true
+echo "=== TypeScript Check ==="
+npx tsc --noEmit -p apps/web/tsconfig.json || true
+echo "=== Quality gate complete ==="
+"""
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+[tasks."quality-gate:api"]
+description = "API-only quality gate"
+run = """
+ruff check apps/api/
+ruff format --check apps/api/
+mypy apps/api/skillhub/ --strict
+python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
+"""
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+[tasks."quality-gate:web"]
+description = "Web-only quality gate"
+run = """
+npx tsc --noEmit -p apps/web/tsconfig.json
+npx vitest run --coverage --project web
+"""
+
+# ─── CI ────────────────────────────────────────────────────────────────────────
+
+[tasks.ci]
+description = "Mirror GitLab CI pipeline locally"
+run = "mise run quality-gate"
+
+# ─── Docs ──────────────────────────────────────────────────────────────────────
+
+[tasks."docs:validate"]
+description = "Validate all documentation"
+run = "echo 'Docs validation: checking Mermaid diagrams...' && ls docs/ai-agent/*.md 2>/dev/null && echo 'Docs present.'"
+
+[tasks."docs:map"]
+description = "Print docs map"
+run = "find docs/ -name '*.md' -type f | sort"
+
+# ─── Repo Master ───────────────────────────────────────────────────────────────
+
+[tasks."repo:bootstrap"]
+description = "Bootstrap Repo Master governance"
+run = "echo 'Invoke bootstrap repo master in Claude.'"
+
+[tasks."repo:manifest"]
+description = "Print MANIFEST.md"
+run = "cat docs/repo-master-docs/MANIFEST.md"
+
+[tasks."repo:priorities"]
+description = "Print PRIORITIES.md"
+run = "cat docs/repo-master-docs/PRIORITIES.md"

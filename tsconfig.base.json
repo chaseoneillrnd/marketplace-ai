@@ -1,0 +1,21 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@skillhub/ui": ["libs/ui/src/index.ts"],
+      "@skillhub/shared-types": ["libs/shared-types/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}

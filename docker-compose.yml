@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: skillhub
+      POSTGRES_PASSWORD: skillhub
+      POSTGRES_DB: skillhub
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://skillhub:skillhub@postgres:5432/skillhub
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      STUB_AUTH_ENABLED: ${STUB_AUTH_ENABLED:-true}
+      LLM_ROUTER_URL: ${LLM_ROUTER_URL:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./libs:/app/libs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: apps/mcp-server/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      SKILLHUB_API_URL: http://api:8000
+    volumes:
+      - ./apps/mcp-server:/app/apps/mcp-server
+      - ./libs:/app/libs
+    depends_on:
+      - api
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
