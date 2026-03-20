@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.venv/
+
+# Build
+dist/
+.nx/cache/
+.nx/workspace-data/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Worktrees
+.worktrees/

@@ -1,0 +1,138 @@
+stages:
+  - lint
+  - test
+  - typecheck
+  - build
+  - security
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.cache/npm"
+
+.python_base:
+  image: python:3.11-slim
+  before_script:
+    - pip install -e apps/api[dev] -e libs/db[dev] -e libs/python-common[dev]
+  variables:
+    PYTHONPATH: "apps/api:libs/db:libs/python-common"
+
+.node_base:
+  image: node:22-alpine
+  before_script:
+    - npm ci
+
+# ─── Stage 1: Lint ─────────────────────────────────────────────────────────────
+
+lint:python:
+  stage: lint
+  extends: .python_base
+  script:
+    - ruff check apps/ libs/
+    - ruff format --check apps/ libs/
+
+lint:typescript:
+  stage: lint
+  extends: .node_base
+  script:
+    - npx eslint apps/web/src/ libs/ui/src/ || true
+    - npx prettier --check 'apps/web/src/**/*.{ts,tsx}' 'libs/ui/src/**/*.{ts,tsx}' 'libs/shared-types/src/**/*.ts'
+
+# ─── Stage 2: Test ─────────────────────────────────────────────────────────────
+
+test:api:
+  stage: test
+  extends: .python_base
+  services:
+    - postgres:16-alpine
+    - redis:7-alpine
+  variables:
+    DATABASE_URL: "postgresql://skillhub:skillhub@postgres:5432/skillhub"
+    REDIS_URL: "redis://redis:6379/0"
+    JWT_SECRET: "ci-test-secret"
+    STUB_AUTH_ENABLED: "true"
+    POSTGRES_USER: skillhub
+    POSTGRES_PASSWORD: skillhub
+    POSTGRES_DB: skillhub
+  script:
+    - python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
+
+test:web:
+  stage: test
+  extends: .node_base
+  script:
+    - npx vitest run --coverage
+
+test:db:
+  stage: test
+  extends: .python_base
+  services:
+    - postgres:16-alpine
+  variables:
+    DATABASE_URL: "postgresql://skillhub:skillhub@postgres:5432/skillhub"
+    POSTGRES_USER: skillhub
+    POSTGRES_PASSWORD: skillhub
+    POSTGRES_DB: skillhub
+  script:
+    - python -m pytest libs/db/tests/ -v
+
+# ─── Stage 3: Typecheck ───────────────────────────────────────────────────────
+
+typecheck:python:
+  stage: typecheck
+  extends: .python_base
+  script:
+    - mypy apps/api/skillhub/ --strict
+
+typecheck:typescript:
+  stage: typecheck
+  extends: .node_base
+  script:
+    - npx tsc --noEmit -p apps/web/tsconfig.json
+
+# ─── Stage 4: Build ───────────────────────────────────────────────────────────
+
+build:web:
+  stage: build
+  extends: .node_base
+  script:
+    - npx vite build --config apps/web/vite.config.ts
+  artifacts:
+    paths:
+      - apps/web/dist/
+
+build:docker:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker compose build
+
+# ─── Stage 5: Security ────────────────────────────────────────────────────────
+
+sast:
+  stage: security
+  extends: .python_base
+  script:
+    - pip install bandit
+    - bandit -r apps/api/skillhub/ -f json -o bandit-report.json || true
+  artifacts:
+    paths:
+      - bandit-report.json
+    when: always
+
+openapi:freshness:
+  stage: security
+  extends: .python_base
+  script:
+    - python -c "
+      from skillhub.main import create_app;
+      import json;
+      app = create_app();
+      generated = json.dumps(app.openapi(), indent=2);
+      with open('specs/openapi.json') as f:
+        committed = f.read();
+      assert generated.strip() == committed.strip(), 'OpenAPI spec is stale. Run mise run gen:openapi';
+      print('OpenAPI spec is fresh.');
+      "
+  allow_failure: true

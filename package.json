@@ -1,0 +1,16 @@
+{
+  "name": "skillhub",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "scripts": {
+    "nx": "nx"
+  },
+  "devDependencies": {
+    "nx": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}

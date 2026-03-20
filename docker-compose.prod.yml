@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: production
+    volumes: []
+    command: uvicorn skillhub.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: apps/mcp-server/Dockerfile
+      target: production
+    volumes: []
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: production
+    ports:
+      - "80:80"
+    volumes: []
