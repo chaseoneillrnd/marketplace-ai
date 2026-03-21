@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, useT } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { FlagsProvider } from './context/FlagsContext';
 import { Nav } from './components/Nav';
 import { AuthModal } from './components/AuthModal';
 import { HomeView } from './views/HomeView';
@@ -55,7 +56,9 @@ export function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <AppShell />
+          <FlagsProvider>
+            <AppShell />
+          </FlagsProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

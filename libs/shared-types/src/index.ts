@@ -176,6 +176,56 @@ export interface CommentListResponse {
   has_more: boolean;
 }
 
+// --- Feature Flags Domain ---
+
+export interface FlagsResponse {
+  flags: Record<string, boolean>;
+}
+
+// --- Admin Domain ---
+
+export interface FeatureSkillRequest {
+  featured: boolean;
+  featured_order?: number | null;
+}
+
+export interface FeatureSkillResponse {
+  slug: string;
+  featured: boolean;
+  featured_order: number | null;
+}
+
+export interface DeprecateSkillResponse {
+  slug: string;
+  status: string;
+  deprecated_at: string | null;
+}
+
+export interface RemoveSkillResponse {
+  slug: string;
+  status: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  event_type: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  metadata: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface AuditLogResponse {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
 // --- Constants ---
 
 export const CATEGORIES = [
