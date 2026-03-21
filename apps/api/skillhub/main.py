@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from skillhub.config import Settings
-from skillhub.routers import auth, health, skills, users
+from skillhub.routers import auth, health, skills, social, users
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -23,6 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(skills.router)
     app.include_router(users.router)
+    app.include_router(social.router)
     return app
 
 
