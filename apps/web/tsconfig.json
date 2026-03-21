@@ -3,11 +3,13 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "outDir": "dist",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "vitest/globals"],
+    "baseUrl": "../..",
+    "paths": {
+      "@skillhub/shared-types": ["libs/shared-types/src/index.ts"],
+      "@skillhub/ui": ["libs/ui/src/index.ts"]
+    }
   },
-  "include": ["src"],
-  "references": [
-    { "path": "../../libs/ui" },
-    { "path": "../../libs/shared-types" }
-  ]
+  "include": ["src"]
 }
