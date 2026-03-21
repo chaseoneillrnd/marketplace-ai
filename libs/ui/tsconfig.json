@@ -1,8 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
     "jsx": "react-jsx",
     "outDir": "dist",
+    "declaration": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src"]
