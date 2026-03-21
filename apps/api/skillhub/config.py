@@ -25,3 +25,7 @@ class Settings(BaseSettings):
 
     # Stub auth
     stub_auth_enabled: bool = True
+
+    # LLM Judge
+    llm_router_url: str = ""
+    llm_judge_enabled: bool = False
