@@ -77,6 +77,7 @@ export function HomeView() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            aria-label="Search skills"
             placeholder="What do you need help with today?"
             style={{
               width: '100%',

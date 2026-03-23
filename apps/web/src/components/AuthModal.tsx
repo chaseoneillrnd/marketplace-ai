@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OAUTH_PROVIDERS } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../lib/api';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface StubUserInfo {
   username: string;
@@ -28,6 +29,8 @@ export function AuthModal({ onClose }: Props) {
   const [devUsers, setDevUsers] = useState<StubUserInfo[]>([]);
   const [step, setStep] = useState<'provider' | 'callback'>('provider');
   const [provider, setProvider] = useState<(typeof OAUTH_PROVIDERS)[number] | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, { onEscape: onClose });
 
   // In dev mode, fetch the list of stub users from the API
   useEffect(() => {
@@ -68,6 +71,9 @@ export function AuthModal({ onClose }: Props) {
     return (
       <div
         data-testid="auth-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
         style={{
           position: 'fixed',
           inset: 0,
@@ -81,6 +87,7 @@ export function AuthModal({ onClose }: Props) {
         onClick={onClose}
       >
         <div
+          ref={modalRef}
           onClick={(e) => e.stopPropagation()}
           style={{
             background: C.surface,
@@ -110,7 +117,7 @@ export function AuthModal({ onClose }: Props) {
                 &#9889;
               </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '17px', color: C.text }}>Dev Sign In</div>
+                <div id="auth-modal-title" style={{ fontWeight: 700, fontSize: '17px', color: C.text }}>Dev Sign In</div>
                 <div style={{ fontSize: '12px', color: C.muted }}>Choose a test identity</div>
               </div>
             </div>
@@ -249,6 +256,9 @@ export function AuthModal({ onClose }: Props) {
   return (
     <div
       data-testid="auth-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
       style={{
         position: 'fixed',
         inset: 0,
@@ -262,6 +272,7 @@ export function AuthModal({ onClose }: Props) {
       onClick={onClose}
     >
       <div
+        ref={modalRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: C.surface,
@@ -291,7 +302,7 @@ export function AuthModal({ onClose }: Props) {
               &#9889;
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '17px', color: C.text }}>Sign in to SkillHub</div>
+              <div id="auth-modal-title" style={{ fontWeight: 700, fontSize: '17px', color: C.text }}>Sign in to SkillHub</div>
               <div style={{ fontSize: '12px', color: C.muted }}>Use your organization's identity provider</div>
             </div>
           </div>

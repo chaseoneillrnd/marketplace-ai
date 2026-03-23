@@ -2,6 +2,12 @@
 
 Internal AI skills marketplace. Browse, install, review, share Claude skills.
 
+## Demo
+
+![App Demo](app-demo.gif)
+
+![Tests](tests.gif)
+
 ## Quick Start
 
 ```
@@ -112,5 +118,3 @@ mise.toml               # Task runner config
 docker-compose.yml      # Local dev services
 nx.json                 # NX workspace config
 ```
-
-Screen Recording 2026-03-23 at 1.39.16 PM

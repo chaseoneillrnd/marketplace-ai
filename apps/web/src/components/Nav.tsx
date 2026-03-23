@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { useT, useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 
@@ -109,6 +109,25 @@ export function Nav({ onAuthOpen }: Props) {
         {navItem('Discover', '/')}
         {navItem('Browse', '/browse')}
         {navItem('Filtered', '/filtered')}
+        {user?.is_platform_team && (
+          <NavLink
+            to="/admin"
+            style={({ isActive }) => ({
+              background: isActive ? C.border : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? C.text : C.muted,
+              padding: '4px 10px',
+              borderRadius: '6px',
+              transition: 'all 0.15s',
+              textDecoration: 'none',
+            })}
+          >
+            Admin
+          </NavLink>
+        )}
       </div>
 
       <div style={{ flex: 1, maxWidth: '380px', marginLeft: 'auto', marginRight: 'auto', position: 'relative' }}>
@@ -118,6 +137,7 @@ export function Nav({ onAuthOpen }: Props) {
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          aria-label="Search skills"
           placeholder="Search skills..."
           style={{
             width: '100%',
@@ -184,9 +204,12 @@ export function Nav({ onAuthOpen }: Props) {
               + Submit
             </button>
             <div ref={menuRef} style={{ position: 'relative' }}>
-              <div
+              <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 data-testid="user-menu-trigger"
+                aria-expanded={menuOpen}
+                aria-haspopup="true"
+                aria-label={`User menu for ${user.name}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -224,7 +247,7 @@ export function Nav({ onAuthOpen }: Props) {
                     {user.division}
                   </div>
                 </div>
-              </div>
+              </button>
               {menuOpen && (
                 <div
                   style={{

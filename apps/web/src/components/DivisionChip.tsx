@@ -15,6 +15,13 @@ export function DivisionChip({ division, active = false, onClick, small = false 
     <span
       onClick={onClick}
       role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === ' ') e.preventDefault();
+          onClick();
+        }
+      } : undefined}
       style={{
         fontSize: small ? '9px' : '10px',
         padding: small ? '2px 6px' : '3px 9px',

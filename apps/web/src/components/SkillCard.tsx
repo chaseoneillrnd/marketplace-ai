@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import type { SkillSummary } from '@skillhub/shared-types';
 import { INSTALL_LABELS, DIVISION_COLORS } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
@@ -15,13 +15,27 @@ interface Props {
 export function SkillCard({ skill, onClick }: Props) {
   const C = useT();
   const [hov, setHov] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === ' ') e.preventDefault();
+      onClick(skill);
+    }
+  };
   const primaryDiv = skill.divisions[0];
   const accent = (primaryDiv && DIVISION_COLORS[primaryDiv]) ?? (skill.author_type === 'official' ? C.accent : C.green);
 
   return (
     <div
       data-testid="skill-card"
+      tabIndex={0}
+      role="article"
+      aria-label={skill.name}
       onClick={() => onClick(skill)}
+      onKeyDown={handleKeyDown}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
@@ -32,7 +46,10 @@ export function SkillCard({ skill, onClick }: Props) {
         cursor: 'pointer',
         transition: 'all 0.18s',
         transform: hov ? 'translateY(-2px)' : 'none',
-        boxShadow: hov ? C.cardShadow : C.mode === 'light' ? '0 1px 4px rgba(0,0,0,0.07)' : 'none',
+        boxShadow: focused
+          ? `0 0 0 2px ${C.accent}`
+          : hov ? C.cardShadow : C.mode === 'light' ? '0 1px 4px rgba(0,0,0,0.07)' : 'none',
+        outline: 'none',
       }}
     >
       <div style={{ height: '3px', background: `linear-gradient(90deg,${accent},${accent}44)` }} />

@@ -22,6 +22,10 @@ export interface Theme {
   navBg: string;
   cardShadow: string;
   scrollThumb: string;
+  adminBg: string;
+  adminSurfaceSide: string;
+  purpleDim: string;
+  adminSidebarWidth: string;
 }
 
 export const DARK: Theme = {
@@ -48,6 +52,10 @@ export const DARK: Theme = {
   navBg: 'rgba(7,17,31,0.92)',
   cardShadow: '0 8px 32px rgba(0,0,0,0.5)',
   scrollThumb: '#1e3248',
+  adminBg: '#060e1a',
+  adminSurfaceSide: '#0a1520',
+  purpleDim: 'rgba(167,139,250,0.12)',
+  adminSidebarWidth: '240px',
 };
 
 export const LIGHT: Theme = {
@@ -62,10 +70,13 @@ export const LIGHT: Theme = {
   dim: '#9aaec4',
   accent: '#2a5de8',
   accentDim: 'rgba(42,93,232,0.09)',
-  green: '#0fa878',
-  greenDim: 'rgba(15,168,120,0.09)',
-  amber: '#c07800',
-  amberDim: 'rgba(192,120,0,0.09)',
+  green: '#0b7a57',
+  // NOTE: *Dim tokens are decorative-only (backgrounds, borders, dividers).
+  // NEVER use greenDim/amberDim for text — they fail WCAG contrast.
+  // Text must use green/amber base tokens which are WCAG AA compliant.
+  greenDim: 'rgba(11,122,87,0.09)',
+  amber: '#8a5400',
+  amberDim: 'rgba(138,84,0,0.09)',
   red: '#d63040',
   redDim: 'rgba(214,48,64,0.09)',
   purple: '#6d4fd4',
@@ -74,6 +85,10 @@ export const LIGHT: Theme = {
   navBg: 'rgba(240,244,249,0.94)',
   cardShadow: '0 4px 20px rgba(0,0,0,0.08)',
   scrollThumb: '#c8d5e6',
+  adminBg: '#e8eef6',
+  adminSurfaceSide: '#f5f8fc',
+  purpleDim: 'rgba(109,79,212,0.09)',
+  adminSidebarWidth: '240px',
 };
 
 export const INSTALL_COLORS: Record<string, string> = {
