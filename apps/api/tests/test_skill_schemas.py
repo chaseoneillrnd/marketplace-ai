@@ -9,7 +9,6 @@ from decimal import Decimal
 import pytest
 
 from skillhub.schemas.skill import (
-    SkillBrowseParams,
     SkillBrowseResponse,
     SkillDetail,
     SkillSummary,
@@ -39,7 +38,7 @@ class TestSkillSummary:
             fork_count=5,
             favorite_count=10,
             avg_rating=Decimal("4.20"),
-            rating_count=8,
+            review_count=8,
         )
         assert summary.slug == "pr-review-assistant"
         assert summary.install_count == 42
@@ -60,7 +59,7 @@ class TestSkillSummary:
             fork_count=0,
             favorite_count=0,
             avg_rating=Decimal("0.00"),
-            rating_count=0,
+            review_count=0,
         )
         assert summary.divisions == []
         assert summary.tags == []
@@ -110,46 +109,6 @@ class TestSkillDetail:
 
     def test_from_attributes_mode(self) -> None:
         assert SkillDetail.model_config.get("from_attributes") is True
-
-
-class TestSkillBrowseParams:
-    """Tests for SkillBrowseParams schema."""
-
-    def test_validates_sort_enum(self) -> None:
-        params = SkillBrowseParams(sort=SortOption.RATING)
-        assert params.sort == SortOption.RATING
-
-    def test_invalid_sort_rejected(self) -> None:
-        with pytest.raises(ValueError):
-            SkillBrowseParams(sort="invalid")  # type: ignore[arg-type]
-
-    def test_per_page_max_100(self) -> None:
-        params = SkillBrowseParams(per_page=100)
-        assert params.per_page == 100
-
-    def test_per_page_over_100_rejected(self) -> None:
-        with pytest.raises(ValueError):
-            SkillBrowseParams(per_page=200)
-
-    def test_per_page_min_1(self) -> None:
-        with pytest.raises(ValueError):
-            SkillBrowseParams(per_page=0)
-
-    def test_divisions_defaults_to_empty_list(self) -> None:
-        params = SkillBrowseParams()
-        assert params.divisions == []
-
-    def test_divisions_accepts_list(self) -> None:
-        params = SkillBrowseParams(divisions=["Engineering Org", "Product Org"])
-        assert len(params.divisions) == 2
-
-    def test_defaults(self) -> None:
-        params = SkillBrowseParams()
-        assert params.q is None
-        assert params.category is None
-        assert params.sort == SortOption.TRENDING
-        assert params.page == 1
-        assert params.per_page == 20
 
 
 class TestSkillBrowseResponse:

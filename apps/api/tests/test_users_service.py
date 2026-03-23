@@ -42,6 +42,7 @@ def _mock_skill(**overrides: Any) -> MagicMock:
     skill.favorite_count = overrides.get("favorite_count", 0)
     skill.avg_rating = overrides.get("avg_rating", Decimal("0.00"))
     skill.review_count = overrides.get("review_count", 0)
+    skill.published_at = overrides.get("published_at", datetime.now(UTC))
     skill.divisions = []
     skill.tags = []
     return skill

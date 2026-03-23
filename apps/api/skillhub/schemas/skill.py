@@ -42,7 +42,7 @@ class SkillSummary(BaseModel):
     fork_count: int
     favorite_count: int
     avg_rating: Decimal
-    rating_count: int
+    review_count: int
     days_ago: int | None = None
 
     # Optional user annotations (only when authenticated)
@@ -120,20 +120,6 @@ class SkillDetail(BaseModel):
     # Optional user annotations
     user_has_installed: bool | None = None
     user_has_favorited: bool | None = None
-
-
-class SkillBrowseParams(BaseModel):
-    """Query params for browse/search."""
-
-    q: str | None = None
-    category: str | None = None
-    divisions: list[str] = Field(default_factory=list)
-    sort: SortOption = SortOption.TRENDING
-    install_method: str | None = None
-    verified: bool | None = None
-    featured: bool | None = None
-    page: int = Field(default=1, ge=1)
-    per_page: int = Field(default=20, ge=1, le=100)
 
 
 class SkillBrowseResponse(BaseModel):

@@ -99,15 +99,17 @@ class TestLLMJudgeService:
         service = LLMJudgeService(router_url="http://fake", enabled=False)
         verdict = await service.evaluate("some content")
         assert verdict.pass_ is True
-        assert verdict.score == 85
-        assert verdict.summary == "Skipped — LLM judge disabled"
+        assert verdict.score == 0
+        assert verdict.skipped is True
+        assert "auto-pass" in verdict.summary
 
     @pytest.mark.asyncio
     async def test_empty_url_skips(self) -> None:
         service = LLMJudgeService(router_url="", enabled=True)
         verdict = await service.evaluate("some content")
         assert verdict.pass_ is True
-        assert verdict.score == 85
+        assert verdict.score == 0
+        assert verdict.skipped is True
 
     @pytest.mark.asyncio
     async def test_timeout_returns_failure(self) -> None:

@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: skillhub
       POSTGRES_PASSWORD: skillhub
@@ -25,6 +25,15 @@ services:
       timeout: 5s
       retries: 5
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
   api:
     build:
       context: .
@@ -38,6 +47,9 @@ services:
       STUB_AUTH_ENABLED: ${STUB_AUTH_ENABLED:-true}
       LLM_ROUTER_URL: ${LLM_ROUTER_URL:-}
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: skillhub-api
+      OTEL_TRACES_ENABLED: "true"
     volumes:
       - ./apps/api:/app/apps/api
       - ./libs:/app/libs
@@ -46,6 +58,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
 
   mcp-server:
     build:
@@ -54,12 +68,16 @@ services:
     ports:
       - "8001:8001"
     environment:
-      SKILLHUB_API_URL: http://api:8000
+      SKILLHUB_MCP_API_BASE_URL: http://api:8000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: skillhub-mcp
+      OTEL_TRACES_ENABLED: "true"
     volumes:
       - ./apps/mcp-server:/app/apps/mcp-server
       - ./libs:/app/libs
     depends_on:
       - api
+      - jaeger
 
   web:
     build:

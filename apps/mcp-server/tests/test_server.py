@@ -8,11 +8,11 @@ from skillhub_mcp.server import mcp
 
 
 class TestServerRegistration:
-    """Tests that all 8 tools are registered on the MCP server."""
+    """Tests that all 9 tools are registered on the MCP server."""
 
     @pytest.mark.asyncio()
     async def test_all_eight_tools_registered(self) -> None:
-        """All 8 MCP tools should be registered."""
+        """All 9 MCP tools should be registered."""
         tools = await mcp.list_tools()
         tool_names = {t.name for t in tools}
 
@@ -21,6 +21,7 @@ class TestServerRegistration:
             "get_skill",
             "install_skill",
             "update_skill",
+            "uninstall_skill",
             "list_installed",
             "fork_skill",
             "submit_skill",
@@ -30,9 +31,9 @@ class TestServerRegistration:
 
     @pytest.mark.asyncio()
     async def test_tool_count(self) -> None:
-        """Exactly 8 tools should be registered."""
+        """Exactly 9 tools should be registered."""
         tools = await mcp.list_tools()
-        assert len(tools) == 8
+        assert len(tools) == 9
 
     @pytest.mark.asyncio()
     async def test_install_skill_has_description(self) -> None:

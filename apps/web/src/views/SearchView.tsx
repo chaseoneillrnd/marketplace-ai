@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { DIVISIONS, type SkillSummary } from '@skillhub/shared-types';
+import { DIVISIONS, SORT_OPTIONS, type SkillSummary, type SortOption } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
 import { useSkillBrowse } from '../hooks/useSkills';
 import { SkillCard } from '../components/SkillCard';
@@ -15,10 +15,12 @@ export function SearchView() {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
   const [selectedDivs, setSelectedDivs] = useState<string[]>([]);
+  const [sort, setSort] = useState<SortOption>('trending');
 
   const { data, loading, error, refetch } = useSkillBrowse({
     q: query || undefined,
     divisions: selectedDivs.length > 0 ? selectedDivs : undefined,
+    sort,
   });
 
   const toggleDiv = useCallback((d: string) => {
@@ -52,8 +54,31 @@ export function SearchView() {
         </div>
       </div>
 
-      <div style={{ marginBottom: '18px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
         <DivisionFilterBar selected={selectedDivs} onToggle={toggleDiv} onClear={clearDivs} divisions={DIVISIONS} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', color: C.dim, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Sort</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            aria-label="Sort by"
+            style={{
+              padding: '5px 10px',
+              borderRadius: '6px',
+              border: `1px solid ${C.border}`,
+              background: C.surface,
+              color: C.text,
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error ? (

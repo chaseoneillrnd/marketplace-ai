@@ -6,7 +6,7 @@ import logging
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from skillhub.dependencies import get_current_user, get_db, require_platform_team
@@ -45,6 +45,7 @@ def create_new_submission(
     body: SubmissionCreateRequest,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    background_tasks: BackgroundTasks,
 ) -> SubmissionCreateResponse:
     """Create a new skill submission and run Gate 1 validation."""
     user_id = uuid.UUID(current_user["user_id"])
@@ -58,6 +59,7 @@ def create_new_submission(
         content=body.content,
         declared_divisions=body.declared_divisions,
         division_justification=body.division_justification,
+        background_tasks=background_tasks,
     )
 
     return SubmissionCreateResponse(**result)
@@ -81,12 +83,18 @@ def get_submission_detail(
             detail="Invalid submission ID",
         ) from err
 
-    result = get_submission(
-        db,
-        sub_uuid,
-        user_id=user_id,
-        is_platform_team=is_platform_team,
-    )
+    try:
+        result = get_submission(
+            db,
+            sub_uuid,
+            user_id=user_id,
+            is_platform_team=is_platform_team,
+        )
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -100,7 +108,7 @@ def get_submission_detail(
 
 
 @router.post("/api/v1/admin/submissions/{submission_id}/scan")
-def scan_submission(
+async def scan_submission(
     submission_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[dict[str, Any], Depends(require_platform_team)],
@@ -117,7 +125,7 @@ def scan_submission(
         ) from err
 
     try:
-        result = run_gate2_scan(db, sub_uuid)
+        result = await run_gate2_scan(db, sub_uuid)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -252,9 +260,11 @@ def review_access_request_endpoint(
     request_id: str,
     body: AccessRequestReviewRequest,
     db: Annotated[Session, Depends(get_db)],
-    _current_user: Annotated[dict[str, Any], Depends(require_platform_team)],
+    current_user: Annotated[dict[str, Any], Depends(require_platform_team)],
 ) -> dict[str, Any]:
     """Review a division access request. Platform team only."""
+    reviewer_id = uuid.UUID(current_user["user_id"])
+
     try:
         req_uuid = uuid.UUID(request_id)
     except ValueError as err:
@@ -264,7 +274,7 @@ def review_access_request_endpoint(
         ) from err
 
     try:
-        result = review_access_request(db, req_uuid, decision=body.decision)
+        result = review_access_request(db, req_uuid, reviewer_id=reviewer_id, decision=body.decision)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

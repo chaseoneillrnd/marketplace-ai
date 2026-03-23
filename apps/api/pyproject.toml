@@ -12,6 +12,12 @@ dependencies = [
   "psycopg2-binary",
   "alembic",
   "httpx",
+  "opentelemetry-api",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp-proto-grpc",
+  "opentelemetry-instrumentation-fastapi",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-httpx",
 ]
 
 [project.optional-dependencies]

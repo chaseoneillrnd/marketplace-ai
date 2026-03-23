@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { ThemeProvider } from '../context/ThemeContext';
 import { AuthProvider } from '../context/AuthContext';
+import { FlagsProvider } from '../context/FlagsContext';
 import { HomeView } from './HomeView';
 import type { SkillBrowseResponse } from '@skillhub/shared-types';
 
@@ -15,7 +16,9 @@ function wrapper({ children }: { children: ReactNode }) {
   return (
     <MemoryRouter>
       <ThemeProvider>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <FlagsProvider>{children}</FlagsProvider>
+        </AuthProvider>
       </ThemeProvider>
     </MemoryRouter>
   );
@@ -41,7 +44,7 @@ const MOCK_BROWSE_RESPONSE: SkillBrowseResponse = {
       fork_count: 34,
       favorite_count: 156,
       avg_rating: 4.9,
-      rating_count: 218,
+      review_count: 218,
       days_ago: 2,
     },
   ],
@@ -75,10 +78,19 @@ describe('HomeView', () => {
   });
 
   it('renders skill cards after successful fetch', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(MOCK_BROWSE_RESPONSE),
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/flags')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ flags: {} }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(MOCK_BROWSE_RESPONSE),
+      });
     });
 
     render(<HomeView />, { wrapper });

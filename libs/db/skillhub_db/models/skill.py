@@ -70,26 +70,26 @@ class Skill(UUIDMixin, TimestampMixin, Base):
     short_desc: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(100), ForeignKey("categories.slug"), nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    author_type: Mapped[AuthorType] = mapped_column(
-        Enum(AuthorType, native_enum=False, length=20),
-        default=AuthorType.COMMUNITY,
+    author_type: Mapped[str] = mapped_column(
+        String(20),
+        default="community",
     )
     current_version: Mapped[str] = mapped_column(String(50), default="1.0.0")
-    install_method: Mapped[InstallMethod] = mapped_column(
-        Enum(InstallMethod, native_enum=False, length=20),
-        default=InstallMethod.ALL,
+    install_method: Mapped[str] = mapped_column(
+        String(20),
+        default="all",
     )
-    data_sensitivity: Mapped[DataSensitivity] = mapped_column(
-        Enum(DataSensitivity, native_enum=False, length=10),
-        default=DataSensitivity.LOW,
+    data_sensitivity: Mapped[str] = mapped_column(
+        String(10),
+        default="low",
     )
     external_calls: Mapped[bool] = mapped_column(default=False)
     verified: Mapped[bool] = mapped_column(default=False)
     featured: Mapped[bool] = mapped_column(default=False)
     featured_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[SkillStatus] = mapped_column(
-        Enum(SkillStatus, native_enum=False, length=20),
-        default=SkillStatus.DRAFT,
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="draft",
     )
 
     # Denormalized counters

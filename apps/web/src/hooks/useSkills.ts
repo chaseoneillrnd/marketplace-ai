@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { SkillBrowseResponse, SkillDetail, SortOption } from '@skillhub/shared-types';
+import { CATEGORY_SLUG_MAP, DIVISION_SLUG_MAP } from '@skillhub/shared-types';
 import { api } from '../lib/api';
 
 interface BrowseParams {
@@ -19,6 +20,7 @@ export function useSkillBrowse(params: BrowseParams) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const paramsRef = useRef(params);
+  const prevPageRef = useRef(params.page);
   paramsRef.current = params;
 
   const fetchSkills = useCallback(async () => {
@@ -28,8 +30,8 @@ export function useSkillBrowse(params: BrowseParams) {
       const p = paramsRef.current;
       const queryParams: Record<string, string | string[] | number | boolean | undefined> = {};
       if (p.q) queryParams.q = p.q;
-      if (p.category && p.category !== 'All') queryParams.category = p.category;
-      if (p.divisions && p.divisions.length > 0) queryParams.divisions = p.divisions;
+      if (p.category && p.category !== 'All') queryParams.category = CATEGORY_SLUG_MAP[p.category] ?? p.category;
+      if (p.divisions && p.divisions.length > 0) queryParams.divisions = p.divisions.map(d => DIVISION_SLUG_MAP[d] ?? d);
       if (p.sort) queryParams.sort = p.sort;
       if (p.install_method && p.install_method !== 'All') queryParams.install_method = p.install_method;
       if (p.verified !== undefined) queryParams.verified = p.verified;
@@ -38,7 +40,17 @@ export function useSkillBrowse(params: BrowseParams) {
       if (p.per_page) queryParams.per_page = p.per_page;
 
       const result = await api.get<SkillBrowseResponse>('/api/v1/skills', queryParams);
-      setData(result);
+
+      const isLoadMore = (p.page ?? 1) > 1 && prevPageRef.current !== p.page;
+      if (isLoadMore) {
+        setData(prev => prev ? {
+          ...result,
+          items: [...prev.items, ...result.items],
+        } : result);
+      } else {
+        setData(result);
+      }
+      prevPageRef.current = p.page;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load skills');
     } finally {

@@ -143,5 +143,6 @@ class JudgeVerdict(BaseModel):
     score: int
     findings: list[GateFinding] = []
     summary: str
+    skipped: bool = False
 
     model_config = ConfigDict(populate_by_name=True)

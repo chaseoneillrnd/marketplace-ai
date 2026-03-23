@@ -234,13 +234,13 @@ ruff check apps/ libs/
 echo "=== Format Check ==="
 ruff format --check apps/ libs/
 echo "=== Type Check: API ==="
-mypy apps/api/skillhub/ --strict || true
+mypy apps/api/skillhub/ --strict
 echo "=== Tests: API ==="
-python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80 || true
+python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
 echo "=== Tests: DB ==="
-python -m pytest libs/db/tests/ -v || true
+python -m pytest libs/db/tests/ -v
 echo "=== TypeScript Check ==="
-npx tsc --noEmit -p apps/web/tsconfig.json || true
+npx tsc --noEmit -p apps/web/tsconfig.json
 echo "=== Quality gate complete ==="
 """
 env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
@@ -291,3 +291,368 @@ run = "cat docs/repo-master-docs/MANIFEST.md"
 [tasks."repo:priorities"]
 description = "Print PRIORITIES.md"
 run = "cat docs/repo-master-docs/PRIORITIES.md"
+
+# ─── Init (Crown Jewel) ──────────────────────────────────────────────────────
+
+[tasks.init]
+description = "Full project init: check deps, install, start services, migrate, seed"
+run = """
+echo "=== SkillHub Init ==="
+echo ""
+echo "--- Checking dependencies ---"
+echo -n "node:           " && node --version
+echo -n "npm:            " && npm --version
+echo -n "python:         " && python --version
+echo -n "pip:            " && pip --version
+echo -n "docker:         " && docker --version
+echo -n "docker compose: " && docker compose version
+echo -n "psql:           " && (psql --version 2>/dev/null || echo "not found (optional)")
+echo -n "redis-cli:      " && (redis-cli --version 2>/dev/null || echo "not found (optional)")
+echo -n "mise:           " && mise --version
+echo ""
+
+echo "--- Environment ---"
+if [ ! -f .env ]; then
+  echo "Copying .env.example to .env"
+  cp .env.example .env
+else
+  echo ".env already exists, skipping copy"
+fi
+echo ""
+
+echo "--- Installing Node dependencies ---"
+npm install
+echo ""
+
+echo "--- Installing Python dependencies ---"
+pip install -e apps/api[dev] -e apps/mcp-server[dev] -e libs/db[dev] -e libs/python-common[dev]
+echo ""
+
+echo "--- Starting Docker containers ---"
+docker compose up -d postgres redis
+echo ""
+
+echo "--- Waiting for PostgreSQL to be healthy ---"
+for i in $(seq 1 30); do
+  if docker compose exec postgres pg_isready -U skillhub > /dev/null 2>&1; then
+    echo "PostgreSQL is ready!"
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "ERROR: PostgreSQL failed to start within 30 seconds"
+    exit 1
+  fi
+  echo "Waiting for PostgreSQL... ($i/30)"
+  sleep 1
+done
+echo ""
+
+echo "--- Running database migrations ---"
+alembic -c libs/db/alembic.ini upgrade head
+echo ""
+
+echo "--- Seeding database ---"
+python libs/db/scripts/seed.py
+echo ""
+
+echo "============================================"
+echo "  SkillHub initialized successfully!"
+echo "============================================"
+echo ""
+echo "  Next steps:"
+echo "    mise run dev:api   — Start API server"
+echo "    mise run dev:web   — Start web dev server"
+echo "    mise run dev:mcp   — Start MCP server"
+echo "    mise run dev:all   — Start all dev servers"
+echo ""
+"""
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+# ─── Additional Quality Tasks ─────────────────────────────────────────────────
+
+[tasks."test:all"]
+description = "Run all test suites (api, web, mcp, db)"
+run = """
+echo "=== API Tests ==="
+python -m pytest apps/api/tests/ -v
+echo "=== Web Tests ==="
+npx nx run web:test
+echo "=== MCP Tests ==="
+python -m pytest apps/mcp-server/tests/ -v
+echo "=== DB Tests ==="
+python -m pytest libs/db/tests/ -v
+echo "=== All tests complete ==="
+"""
+env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }
+
+[tasks."test:mcp:coverage"]
+description = "Run MCP tests with coverage"
+run = "python -m pytest apps/mcp-server/tests/ -v --cov=apps/mcp-server/skillhub_mcp --cov-fail-under=80"
+env = { PYTHONPATH = "apps/mcp-server:libs/python-common" }
+
+[tasks."lint:all"]
+description = "Run all linters (python + typescript)"
+run = """
+echo "=== Python Lint ==="
+ruff check apps/ libs/
+echo "=== TypeScript Lint ==="
+npx nx run web:lint
+echo "=== All linting complete ==="
+"""
+
+[tasks."lint:db"]
+description = "Lint DB lib"
+run = "ruff check libs/db/"
+
+[tasks."format:all"]
+description = "Format all code (python + typescript)"
+run = """
+echo "=== Python Format ==="
+ruff format apps/ libs/
+echo "=== TypeScript Format ==="
+npx prettier --write 'apps/web/src/**/*.{ts,tsx,css}' 'libs/ui/src/**/*.{ts,tsx}' 'libs/shared-types/src/**/*.ts'
+echo "=== All formatting complete ==="
+"""
+
+[tasks."typecheck:all"]
+description = "Run all type checks (python + typescript)"
+run = """
+echo "=== Python Type Check ==="
+mypy apps/api/skillhub/ --strict
+echo "=== TypeScript Type Check ==="
+npx tsc --noEmit -p apps/web/tsconfig.json
+echo "=== All type checks complete ==="
+"""
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+# ─── Utility Tasks ────────────────────────────────────────────────────────────
+
+[tasks.clean]
+description = "Remove all build artifacts, caches, and temp files"
+run = """
+echo "=== Cleaning build artifacts ==="
+rm -rf apps/web/dist apps/web/build
+find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name .mypy_cache -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name .ruff_cache -exec rm -rf {} + 2>/dev/null || true
+rm -rf node_modules/.cache
+rm -rf .nx/cache
+echo "Clean complete."
+"""
+
+[tasks."clean:docker"]
+description = "Remove all Docker volumes and images for this project"
+run = """
+echo "=== Cleaning Docker resources ==="
+docker compose down -v --rmi local
+echo "Docker clean complete."
+"""
+
+[tasks.status]
+description = "Print project status (docker, migrations, tests)"
+run = """
+echo "=== SkillHub Status ==="
+echo ""
+echo "--- Docker Containers ---"
+docker compose ps
+echo ""
+echo "--- Database Migration Status ---"
+alembic -c libs/db/alembic.ini current 2>/dev/null || echo "  (unable to check — is postgres running?)"
+echo ""
+echo "--- Test Counts ---"
+echo -n "  API tests:  " && find apps/api/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null | wc -l | tr -d ' '
+echo -n "  Web tests:  " && find apps/web/src -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.ts' -o -name '*.spec.tsx' 2>/dev/null | wc -l | tr -d ' '
+echo -n "  MCP tests:  " && find apps/mcp-server/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null | wc -l | tr -d ' '
+echo -n "  DB tests:   " && find libs/db/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null | wc -l | tr -d ' '
+echo ""
+"""
+env = { PYTHONPATH = "libs/db:libs/python-common" }
+
+[tasks."deps:check"]
+description = "Check all dependency versions and report outdated"
+run = """
+echo "=== Outdated Dependencies ==="
+echo ""
+echo "--- npm ---"
+npm outdated || true
+echo ""
+echo "--- pip ---"
+pip list --outdated || true
+echo ""
+"""
+
+[tasks."deps:update"]
+description = "Update all dependencies to latest compatible"
+run = """
+echo "=== Updating Dependencies ==="
+echo ""
+echo "--- npm ---"
+npm update
+echo ""
+echo "--- pip ---"
+pip install --upgrade -e apps/api[dev] -e apps/mcp-server[dev] -e libs/db[dev] -e libs/python-common[dev]
+echo ""
+echo "Dependencies updated."
+"""
+
+# ─── Documentation Tasks ─────────────────────────────────────────────────────
+
+[tasks."docs:serve"]
+description = "Serve docs locally"
+run = "python -m http.server 8080"
+dir = "docs"
+
+[tasks."docs:generate"]
+description = "Generate all docs artifacts (OpenAPI, schema dump, type generation)"
+run = """
+echo "=== Generating Docs Artifacts ==="
+echo ""
+echo "--- OpenAPI spec ---"
+python -c "from skillhub.main import create_app; import json; app=create_app(); print(json.dumps(app.openapi(), indent=2))" > specs/openapi.json
+echo "  Written to specs/openapi.json"
+echo ""
+echo "--- Schema dump ---"
+docker compose exec postgres pg_dump -U skillhub -d skillhub --schema-only > specs/schema.sql
+echo "  Written to specs/schema.sql"
+echo ""
+echo "--- TypeScript types ---"
+npx openapi-typescript specs/openapi.json -o libs/shared-types/src/api.generated.ts
+echo "  Written to libs/shared-types/src/api.generated.ts"
+echo ""
+echo "Docs generation complete."
+"""
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+# ─── Development Workflow Tasks ───────────────────────────────────────────────
+
+[tasks."dev:all"]
+description = "Start all dev servers (api + web + mcp) in background"
+run = """
+echo "=== Starting all dev servers ==="
+
+# Kill any processes occupying required ports
+for port in 8000 5173 8001; do
+  pids=$(lsof -ti :$port 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "  Killing process(es) on port $port: $pids"
+    echo "$pids" | xargs kill -9 2>/dev/null || true
+    sleep 0.5
+  fi
+done
+
+uvicorn skillhub.main:app --reload --host 0.0.0.0 --port 8000 --app-dir apps/api </dev/null &
+API_PID=$!
+(cd apps/web && npx vite) </dev/null &
+WEB_PID=$!
+(cd apps/mcp-server && python -m skillhub_mcp.server) </dev/null &
+MCP_PID=$!
+echo ""
+echo "  API server PID: $API_PID (port 8000)"
+echo "  Web server PID: $WEB_PID"
+echo "  MCP server PID: $MCP_PID"
+echo ""
+echo "  Run 'mise run dev:stop' to stop all servers"
+echo ""
+echo "$API_PID" > .dev-pids
+echo "$WEB_PID" >> .dev-pids
+echo "$MCP_PID" >> .dev-pids
+wait
+"""
+env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }
+
+[tasks."dev:stop"]
+description = "Stop all dev servers"
+run = """
+if [ -f .dev-pids ]; then
+  echo "=== Stopping dev servers ==="
+  while read -r pid; do
+    if kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" && echo "  Stopped PID $pid"
+    fi
+  done < .dev-pids
+  rm -f .dev-pids
+  echo "All dev servers stopped."
+else
+  echo "No .dev-pids file found. Attempting to kill known processes..."
+  pkill -f "uvicorn skillhub.main:app" 2>/dev/null && echo "  Stopped API server" || true
+  pkill -f "skillhub_mcp.server" 2>/dev/null && echo "  Stopped MCP server" || true
+  echo "Done."
+fi
+"""
+
+[tasks.reset]
+description = "Full reset: clean + init (nuclear option)"
+run = """
+echo "=== Full Reset ==="
+echo ""
+mise run clean
+mise run init
+"""
+
+[tasks.smoke]
+description = "Quick smoke test: start API, hit /health, verify 200"
+run = """
+echo "=== Smoke Test ==="
+echo ""
+echo "Starting API server..."
+uvicorn skillhub.main:app --host 0.0.0.0 --port 8000 --app-dir apps/api &
+API_PID=$!
+sleep 3
+
+echo "Hitting /health endpoint..."
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/health)
+kill $API_PID 2>/dev/null
+
+if [ "$STATUS" = "200" ]; then
+  echo "Smoke test PASSED (HTTP $STATUS)"
+  exit 0
+else
+  echo "Smoke test FAILED (HTTP $STATUS)"
+  exit 1
+fi
+"""
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+
+# ─── Tracing ──────────────────────────────────────────────────────────────────
+
+[tasks."tracing:up"]
+description = "Start Jaeger"
+run = "docker compose up -d jaeger"
+
+[tasks."tracing:down"]
+description = "Stop Jaeger"
+run = "docker compose stop jaeger"
+
+[tasks."tracing:ui"]
+description = "Open Jaeger UI"
+run = "open http://localhost:16686 2>/dev/null || xdg-open http://localhost:16686 2>/dev/null || echo 'http://localhost:16686'"
+
+[tasks."tracing:status"]
+description = "Check Jaeger health"
+run = """
+if curl -sf http://localhost:16686/ > /dev/null 2>&1; then
+  echo "Jaeger UI: http://localhost:16686 (up)"
+else
+  echo "Jaeger UI: down"
+fi
+if curl -sf http://localhost:4317/ > /dev/null 2>&1; then
+  echo "OTLP gRPC: localhost:4317 (up)"
+else
+  echo "OTLP gRPC: down (this is normal — gRPC health isn't HTTP)"
+fi
+"""
+
+# ─── Security Tasks ──────────────────────────────────────────────────────────
+
+[tasks."security:scan"]
+description = "Run bandit security scan on Python code"
+run = "bandit -r apps/api/skillhub/ apps/mcp-server/skillhub_mcp/ libs/db/skillhub_db/ libs/python-common/ -ll"
+
+[tasks."security:audit"]
+description = "Run npm audit on web dependencies"
+run = "npm audit"
+
+[tasks."council"]
+description = "Council of Experts — parallel free-form multi-agent discussion"
+run = "bash ./scripts/council/run.sh"

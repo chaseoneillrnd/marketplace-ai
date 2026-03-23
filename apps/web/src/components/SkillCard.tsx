@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { SkillSummary } from '@skillhub/shared-types';
-import { INSTALL_LABELS } from '@skillhub/shared-types';
+import { INSTALL_LABELS, DIVISION_COLORS } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
 import { DivisionChip } from './DivisionChip';
 import { INSTALL_COLORS } from '../lib/theme';
+
+const TAG_HUES = ['#4b7dff', '#a78bfa', '#1fd49e', '#f2a020', '#22d3ee', '#ef5060', '#fb923c', '#e879f9'];
 
 interface Props {
   skill: SkillSummary;
@@ -13,7 +15,8 @@ interface Props {
 export function SkillCard({ skill, onClick }: Props) {
   const C = useT();
   const [hov, setHov] = useState(false);
-  const accent = skill.author_type === 'official' ? C.accent : C.green;
+  const primaryDiv = skill.divisions[0];
+  const accent = (primaryDiv && DIVISION_COLORS[primaryDiv]) ?? (skill.author_type === 'official' ? C.accent : C.green);
 
   return (
     <div
@@ -94,21 +97,24 @@ export function SkillCard({ skill, onClick }: Props) {
           )}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
-          {skill.tags.slice(0, 3).map((t: string) => (
-            <span
-              key={t}
-              style={{
-                fontSize: '10px',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                background: C.border,
-                color: C.muted,
-                fontFamily: "'JetBrains Mono',monospace",
-              }}
-            >
-              #{t}
-            </span>
-          ))}
+          {skill.tags.slice(0, 3).map((t: string, i: number) => {
+            const tagColor = TAG_HUES[i % TAG_HUES.length];
+            return (
+              <span
+                key={t}
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  background: `${tagColor}14`,
+                  color: tagColor,
+                  fontFamily: "'JetBrains Mono',monospace",
+                }}
+              >
+                #{t}
+              </span>
+            );
+          })}
         </div>
         <div
           style={{
@@ -122,7 +128,7 @@ export function SkillCard({ skill, onClick }: Props) {
           <div style={{ display: 'flex', gap: '12px' }}>
             <span style={{ fontSize: '11px', color: C.muted }}>
               <span style={{ color: C.amber }}>&#9733;</span> {Number(skill.avg_rating).toFixed(1)}{' '}
-              <span style={{ color: C.dim }}>({skill.rating_count})</span>
+              <span style={{ color: C.dim }}>({skill.review_count})</span>
             </span>
             <span style={{ fontSize: '11px', color: C.muted }}>&#8595; {skill.install_count.toLocaleString()}</span>
           </div>

@@ -244,7 +244,8 @@ class TestDeleteComment:
         result = delete_comment(db, "test-skill", COMMENT_ID, USER_ID)
 
         assert comment.body == "[deleted]"
-        assert comment.deleted_at is not None
+        # deleted_at is now set via query-based update, so verify update was called
+        db.query.return_value.filter.return_value.update.assert_called()
         db.commit.assert_called_once()
 
     def test_non_owner_non_platform_gets_403(self) -> None:

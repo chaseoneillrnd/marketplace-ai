@@ -42,7 +42,7 @@ const MOCK_RESPONSE: SkillBrowseResponse = {
       fork_count: 5,
       favorite_count: 20,
       avg_rating: 4.5,
-      rating_count: 10,
+      review_count: 10,
       days_ago: 1,
     },
   ],
@@ -80,7 +80,7 @@ describe('FilteredView', () => {
     await waitFor(() => {
       const lastCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
       const url = lastCall[0] as string;
-      expect(url).toContain('divisions=Engineering+Org');
+      expect(url).toContain('divisions=engineering-org');
     });
   });
 

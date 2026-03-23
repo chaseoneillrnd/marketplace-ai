@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { INSTALL_LABELS } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useSkillDetail } from '../hooks/useSkills';
+import { useFlag } from '../hooks/useFlag';
+import { useReviews } from '../hooks/useReviews';
 import { DivisionChip } from '../components/DivisionChip';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { ErrorState } from '../components/ErrorState';
@@ -15,12 +17,22 @@ export function SkillDetailView() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
+  const mcpInstallEnabled = useFlag('mcp_install_enabled');
 
   const { data: skill, loading, error, refetch } = useSkillDetail(slug);
   const [tab, setTab] = useState('overview');
   const [installed, setInstalled] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [reqAccess, setReqAccess] = useState(false);
+
+  useEffect(() => {
+    if (skill) {
+      setInstalled(!!skill.user_has_installed);
+      setFavorited(!!skill.user_has_favorited);
+    }
+  }, [skill]);
+  const [reqAccessError, setReqAccessError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -44,18 +56,20 @@ export function SkillDetailView() {
 
   const handleInstall = async () => {
     if (!hasAccess || installed) return;
+    setActionError(null);
     try {
       await api.post(`/api/v1/skills/${skill.slug}/install`, {
         method: skill.install_method,
         version: skill.current_version,
       });
       setInstalled(true);
-    } catch {
-      // Silent fail — could show toast
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Install failed');
     }
   };
 
   const handleFavorite = async () => {
+    setActionError(null);
     try {
       if (favorited) {
         await api.delete(`/api/v1/skills/${skill.slug}/favorite`);
@@ -64,8 +78,27 @@ export function SkillDetailView() {
         await api.post(`/api/v1/skills/${skill.slug}/favorite`);
         setFavorited(true);
       }
-    } catch {
-      // Silent fail
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Action failed');
+    }
+  };
+
+  const handleFork = async () => {
+    setActionError(null);
+    try {
+      const result = await api.post<{ forked_skill_slug: string }>(`/api/v1/skills/${skill.slug}/fork`);
+      navigate(`/skills/${result.forked_skill_slug}`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Fork failed');
+    }
+  };
+
+  const handleFollow = async () => {
+    setActionError(null);
+    try {
+      await api.post(`/api/v1/skills/${skill.slug}/follow`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Follow failed');
     }
   };
 
@@ -120,14 +153,26 @@ export function SkillDetailView() {
             </div>
           </div>
           <button
-            onClick={() => setReqAccess(!reqAccess)}
+            onClick={async () => {
+              if (reqAccess) return;
+              try {
+                setReqAccessError(null);
+                await api.post(`/api/v1/skills/${skill.slug}/access-request`, {
+                  reason: `${userDiv} needs access to this skill`,
+                });
+                setReqAccess(true);
+              } catch (err) {
+                setReqAccessError(err instanceof Error ? err.message : 'Failed to request access');
+              }
+            }}
+            disabled={reqAccess}
             style={{
               padding: '5px 12px',
               borderRadius: '8px',
               border: `1px solid ${C.border}`,
-              background: C.surface,
-              color: C.muted,
-              cursor: 'pointer',
+              background: reqAccess ? `${C.green}18` : C.surface,
+              color: reqAccess ? C.green : C.muted,
+              cursor: reqAccess ? 'default' : 'pointer',
               fontSize: '12px',
               fontWeight: 600,
               whiteSpace: 'nowrap',
@@ -136,6 +181,9 @@ export function SkillDetailView() {
           >
             {reqAccess ? '\u2713 Requested' : 'Request Access'}
           </button>
+          {reqAccessError && (
+            <div style={{ fontSize: '11px', color: C.red, marginTop: '4px' }}>{reqAccessError}</div>
+          )}
         </div>
       )}
 
@@ -215,7 +263,7 @@ export function SkillDetailView() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: C.muted }}>
                   <span>
-                    by <span style={{ color: C.text }}>{skill.author}</span>
+                    by <span style={{ color: C.text }}>{skill.author ?? 'Unknown'}</span>
                   </span>
                   <span
                     style={{
@@ -482,12 +530,12 @@ export function SkillDetailView() {
                 cmd: `claude skill install ${skill.slug}`,
                 desc: 'Recommended for developers.',
               },
-              {
+              ...(mcpInstallEnabled ? [{
                 method: 'mcp',
                 label: 'MCP Server',
                 cmd: `# SkillHub MCP -> install_skill("${skill.slug}")`,
                 desc: 'For teams using the SkillHub MCP server.',
-              },
+              }] : []),
               {
                 method: 'manual',
                 label: 'Manual Install',
@@ -542,17 +590,203 @@ export function SkillDetailView() {
           </div>
         )}
 
-        {tab === 'reviews' && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: C.muted }}>
-            <div style={{ fontSize: '14px' }}>
-              {skill.review_count} reviews &middot; {Number(skill.avg_rating).toFixed(1)} avg rating
-            </div>
-            <div style={{ fontSize: '12px', marginTop: '8px', color: C.dim }}>
-              Full reviews UI coming soon
-            </div>
-          </div>
-        )}
+        {tab === 'reviews' && <ReviewsSection slug={skill.slug} user={user} C={C} />}
       </div>
+    </div>
+  );
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffSec = Math.floor((now - then) / 1000);
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 30) return `${diffDay}d ago`;
+  const diffMonth = Math.floor(diffDay / 30);
+  if (diffMonth < 12) return `${diffMonth}mo ago`;
+  return `${Math.floor(diffMonth / 12)}y ago`;
+}
+
+function StarDisplay({ rating, color }: { rating: number; color: string }) {
+  return (
+    <span style={{ color, fontSize: '14px', letterSpacing: '1px' }} data-testid="star-display">
+      {Array.from({ length: 5 }, (_, i) => (i < rating ? '\u2605' : '\u2606')).join('')}
+    </span>
+  );
+}
+
+function StarPicker({
+  value,
+  onChange,
+  color,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  color: string;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: '4px' }} data-testid="star-picker">
+      {Array.from({ length: 5 }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onChange(i + 1)}
+          aria-label={`${i + 1} star${i === 0 ? '' : 's'}`}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '20px',
+            color: i < value ? color : '#666',
+            padding: '0 2px',
+          }}
+        >
+          {i < value ? '\u2605' : '\u2606'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface ReviewsSectionProps {
+  slug: string;
+  user: { user_id?: string; name?: string } | null;
+  C: ReturnType<typeof useT>;
+}
+
+function ReviewsSection({ slug, user, C }: ReviewsSectionProps) {
+  const { data: reviews, loading, error, refetch } = useReviews(slug);
+  const [rating, setRating] = useState(0);
+  const [body, setBody] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0 || !body.trim()) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await api.post(`/api/v1/skills/${slug}/reviews`, { rating, body: body.trim() });
+      setRating(0);
+      setBody('');
+      refetch();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      {user && (
+        <form onSubmit={handleSubmit} style={{ marginBottom: '24px' }}>
+          <h3
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: C.dim,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              margin: '0 0 10px',
+            }}
+          >
+            Write a Review
+          </h3>
+          <div style={{ marginBottom: '10px' }}>
+            <StarPicker value={rating} onChange={setRating} color={C.amber} />
+          </div>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Share your experience with this skill..."
+            rows={3}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: `1px solid ${C.border}`,
+              background: C.bg,
+              color: C.text,
+              fontSize: '13px',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+          {submitError && (
+            <div style={{ fontSize: '12px', color: C.red, marginTop: '6px' }}>{submitError}</div>
+          )}
+          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="submit"
+              disabled={submitting || rating === 0 || !body.trim()}
+              style={{
+                padding: '6px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: rating > 0 && body.trim() ? C.accent : C.border,
+                color: rating > 0 && body.trim() ? '#fff' : C.muted,
+                cursor: rating > 0 && body.trim() ? 'pointer' : 'not-allowed',
+                fontSize: '12px',
+                fontWeight: 600,
+              }}
+            >
+              {submitting ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '20px 0', color: C.muted, fontSize: '13px' }}>
+          Loading reviews...
+        </div>
+      )}
+
+      {error && (
+        <div style={{ textAlign: 'center', padding: '20px 0', color: C.red, fontSize: '13px' }}>
+          Failed to load reviews
+        </div>
+      )}
+
+      {reviews && reviews.items.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '30px 0', color: C.muted, fontSize: '13px' }}>
+          No reviews yet. Be the first to review this skill.
+        </div>
+      )}
+
+      {reviews && reviews.items.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {reviews.items.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                padding: '14px 16px',
+                background: C.bg,
+                borderRadius: '10px',
+                border: `1px solid ${C.border}`,
+              }}
+              data-testid="review-item"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <StarDisplay rating={r.rating} color={C.amber} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: C.text }}>{r.user_id}</span>
+                </div>
+                <span style={{ fontSize: '11px', color: C.dim }}>{formatRelativeTime(r.created_at)}</span>
+              </div>
+              <p style={{ fontSize: '13px', color: C.muted, lineHeight: '1.6', margin: 0 }}>{r.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

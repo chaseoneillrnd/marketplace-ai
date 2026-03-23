@@ -7,12 +7,14 @@ import { useSkillBrowse } from '../hooks/useSkills';
 import { SkillCard } from '../components/SkillCard';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { ErrorState } from '../components/ErrorState';
+import { useFlag } from '../hooks/useFlag';
 
 export function HomeView() {
   const C = useT();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [query, setQuery] = useState('');
+  const featuredV2 = useFlag('featured_skills_v2');
 
   const { data: featured, loading: featuredLoading, error: featuredError, refetch: refetchFeatured } = useSkillBrowse({
     featured: true,
@@ -54,10 +56,13 @@ export function HomeView() {
           <span style={{ color: C.text }}>Your organization&apos;s</span>
           <br />
           <span
+            key={C.mode}
             style={{
               background: `linear-gradient(135deg,${C.accent},${C.purple})`,
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent',
               display: 'inline-block',
             }}
           >
@@ -147,7 +152,7 @@ export function HomeView() {
       )}
 
       {/* Featured */}
-      <section>
+      <section data-featured-v2={featuredV2} className={featuredV2 ? 'featured-v2' : ''}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: C.text }}>Featured Skills</h2>
           <button

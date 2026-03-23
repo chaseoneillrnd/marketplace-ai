@@ -9,10 +9,10 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from skillhub.services.skills import (
+    _batch_user_favorited,
+    _batch_user_installed,
     _skill_to_detail_dict,
     _skill_to_summary_dict,
-    _user_has_favorited,
-    _user_has_installed,
     browse_skills,
     get_skill_detail,
     increment_view_count,
@@ -86,7 +86,7 @@ class TestSkillToSummaryDict:
         skill = _make_mock_skill(install_count=42)
         result = _skill_to_summary_dict(skill)
         assert result["install_count"] == 42
-        assert result["rating_count"] == skill.review_count
+        assert result["review_count"] == skill.review_count
 
 
 class TestSkillToDetailDict:
@@ -175,37 +175,34 @@ class TestGetSkillDetail:
 
 
 class TestUserAnnotations:
-    """Tests for _user_has_installed and _user_has_favorited."""
+    """Tests for batch user annotation functions."""
 
-    def test_user_has_installed_true(self) -> None:
+    def test_batch_user_installed_returns_set(self) -> None:
+        skill_id = uuid.uuid4()
         mock_db = MagicMock()
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-        mock_query.select_from.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.scalar.return_value = 1
+        row = MagicMock()
+        row.skill_id = skill_id
+        mock_db.query.return_value.filter.return_value.all.return_value = [row]
 
-        assert _user_has_installed(mock_db, uuid.uuid4(), uuid.uuid4()) is True
+        result = _batch_user_installed(mock_db, uuid.uuid4(), [skill_id])
+        assert skill_id in result
 
-    def test_user_has_installed_false(self) -> None:
+    def test_batch_user_installed_empty(self) -> None:
         mock_db = MagicMock()
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-        mock_query.select_from.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.scalar.return_value = 0
+        mock_db.query.return_value.filter.return_value.all.return_value = []
 
-        assert _user_has_installed(mock_db, uuid.uuid4(), uuid.uuid4()) is False
+        result = _batch_user_installed(mock_db, uuid.uuid4(), [uuid.uuid4()])
+        assert len(result) == 0
 
-    def test_user_has_favorited_true(self) -> None:
+    def test_batch_user_favorited_returns_set(self) -> None:
+        skill_id = uuid.uuid4()
         mock_db = MagicMock()
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-        mock_query.select_from.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.scalar.return_value = 1
+        row = MagicMock()
+        row.skill_id = skill_id
+        mock_db.query.return_value.filter.return_value.all.return_value = [row]
 
-        assert _user_has_favorited(mock_db, uuid.uuid4(), uuid.uuid4()) is True
+        result = _batch_user_favorited(mock_db, uuid.uuid4(), [skill_id])
+        assert skill_id in result
 
 
 class TestBrowseSkillsFilters:
@@ -255,11 +252,15 @@ class TestBrowseSkillsFilters:
         items, total = browse_skills(mock_db, featured=True)
         assert total == 0
 
-    @patch("skillhub.services.skills._user_has_installed", return_value=True)
-    @patch("skillhub.services.skills._user_has_favorited", return_value=False)
-    def test_with_user_annotations(self, mock_fav: MagicMock, mock_inst: MagicMock) -> None:
+    @patch("skillhub.services.skills._batch_user_installed")
+    @patch("skillhub.services.skills._batch_user_favorited")
+    @patch("skillhub.services.skills._batch_resolve_authors")
+    def test_with_user_annotations(
+        self, mock_authors: MagicMock, mock_fav: MagicMock, mock_inst: MagicMock
+    ) -> None:
         mock_db = self._setup_mock_db()
         skill = _make_mock_skill()
+        skill_id = skill.id
         mock_query = mock_db.query.return_value
         mock_query.options.return_value = mock_query
         mock_query.filter.return_value = mock_query
@@ -267,12 +268,17 @@ class TestBrowseSkillsFilters:
         mock_query.unique.return_value = mock_query
         mock_query.all.return_value = [skill]
 
+        mock_authors.return_value = {skill.author_id: "Alice"}
+        mock_inst.return_value = {skill_id}
+        mock_fav.return_value = set()
+
         user_id = uuid.uuid4()
         items, total = browse_skills(mock_db, current_user_id=user_id)
         assert total == 1
         assert len(items) == 1
         assert items[0]["user_has_installed"] is True
         assert items[0]["user_has_favorited"] is False
+        assert items[0]["author"] == "Alice"
 
     def test_sort_options(self) -> None:
         for sort in ["trending", "installs", "rating", "newest", "updated"]:

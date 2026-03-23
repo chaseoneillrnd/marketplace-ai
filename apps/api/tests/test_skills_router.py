@@ -36,7 +36,7 @@ def _make_skill_summary(**overrides: Any) -> dict[str, Any]:
         "fork_count": 5,
         "favorite_count": 10,
         "avg_rating": Decimal("4.20"),
-        "rating_count": 8,
+        "review_count": 8,
         "days_ago": None,
         "user_has_installed": None,
         "user_has_favorited": None,

@@ -6,6 +6,7 @@ import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
+from uuid import UUID, uuid5
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,16 +18,83 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Stub user claims
-STUB_USER: dict[str, Any] = {
-    "user_id": "00000000-0000-0000-0000-000000000001",
-    "email": "test@skillhub.dev",
-    "name": "Test User",
-    "username": "test",
-    "division": "Engineering Org",
-    "role": "Senior Engineer",
-    "is_platform_team": False,
-    "is_security_team": False,
+# ---------------------------------------------------------------------------
+# Deterministic UUID namespace for dev stub users.
+# uuid5(NAMESPACE, username) produces a stable, reproducible UUID per user.
+# ---------------------------------------------------------------------------
+STUB_USER_NAMESPACE = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+
+def _uid(username: str) -> str:
+    """Return a deterministic UUID string for a stub username."""
+    return str(uuid5(STUB_USER_NAMESPACE, username))
+
+
+# ---------------------------------------------------------------------------
+# Dev user registry — covers all roles/divisions for multi-identity testing.
+# Every identity uses password "user".
+# ---------------------------------------------------------------------------
+STUB_USERS: dict[str, dict[str, Any]] = {
+    "alice": {
+        "user_id": _uid("alice"),
+        "email": "alice@acme.com",
+        "name": "Alice Chen",
+        "username": "alice",
+        "division": "engineering-org",
+        "role": "Staff Engineer",
+        "is_platform_team": True,
+        "is_security_team": False,
+    },
+    "bob": {
+        "user_id": _uid("bob"),
+        "email": "bob@acme.com",
+        "name": "Bob Martinez",
+        "username": "bob",
+        "division": "data-science-org",
+        "role": "Senior Data Scientist",
+        "is_platform_team": False,
+        "is_security_team": False,
+    },
+    "carol": {
+        "user_id": _uid("carol"),
+        "email": "carol@acme.com",
+        "name": "Carol Park",
+        "username": "carol",
+        "division": "security-org",
+        "role": "Security Lead",
+        "is_platform_team": False,
+        "is_security_team": True,
+    },
+    "dave": {
+        "user_id": _uid("dave"),
+        "email": "dave@acme.com",
+        "name": "Dave Thompson",
+        "username": "dave",
+        "division": "product-org",
+        "role": "Senior Product Manager",
+        "is_platform_team": False,
+        "is_security_team": False,
+    },
+    "admin": {
+        "user_id": _uid("admin"),
+        "email": "admin@acme.com",
+        "name": "Admin User",
+        "username": "admin",
+        "division": "engineering-org",
+        "role": "Platform Lead",
+        "is_platform_team": True,
+        "is_security_team": True,
+    },
+    "test": {
+        "user_id": _uid("test"),
+        "email": "test@acme.com",
+        "name": "Test User",
+        "username": "test",
+        "division": "engineering-org",
+        "role": "Senior Engineer",
+        "is_platform_team": False,
+        "is_security_team": False,
+    },
 }
 
 OAUTH_PROVIDERS: set[str] = {"microsoft", "google", "okta", "github", "oidc"}
@@ -46,6 +114,17 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class StubUserInfo(BaseModel):
+    """Public info about a stub user (for dev user picker)."""
+
+    username: str
+    name: str
+    division: str
+    role: str
+    is_platform_team: bool
+    is_security_team: bool
+
+
 @router.post("/token", response_model=TokenResponse)
 def login(body: TokenRequest, request: Request) -> TokenResponse:
     """Issue a JWT token using stub credentials (dev/test only)."""
@@ -56,21 +135,24 @@ def login(body: TokenRequest, request: Request) -> TokenResponse:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Stub auth is disabled",
         )
-    if body.username != "test" or body.password != "user":
+
+    if body.password != "user" or body.username not in STUB_USERS:
         logger.info("Failed stub login attempt for username=%s", body.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
 
+    user_claims = STUB_USERS[body.username]
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
-        **STUB_USER,
+        **user_claims,
+        "sub": user_claims["user_id"],
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
     }
     token: str = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-    logger.info("Stub token issued for user=%s", STUB_USER["username"])
+    logger.info("Stub token issued for user=%s", body.username)
     return TokenResponse(access_token=token)
 
 
@@ -80,6 +162,28 @@ def get_me(
 ) -> dict[str, Any]:
     """Return the authenticated user's JWT claims."""
     return current_user
+
+
+@router.get("/dev-users", response_model=list[StubUserInfo])
+def list_dev_users(request: Request) -> list[dict[str, Any]]:
+    """List available dev stub users (only when stub auth is enabled)."""
+    settings = request.app.state.settings
+    if not settings.stub_auth_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Stub auth is disabled",
+        )
+    return [
+        {
+            "username": u["username"],
+            "name": u["name"],
+            "division": u["division"],
+            "role": u["role"],
+            "is_platform_team": u["is_platform_team"],
+            "is_security_team": u["is_security_team"],
+        }
+        for u in STUB_USERS.values()
+    ]
 
 
 @router.get("/oauth/{provider}")

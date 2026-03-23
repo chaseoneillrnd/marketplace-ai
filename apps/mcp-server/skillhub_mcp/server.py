@@ -1,4 +1,4 @@
-"""SkillHub MCP Server — exposes 8 tools for Claude Code skill management."""
+"""SkillHub MCP Server — exposes 9 tools for Claude Code skill management."""
 
 from __future__ import annotations
 
@@ -11,17 +11,20 @@ from mcp.server.fastmcp import FastMCP
 from skillhub_mcp.api_client import APIClient
 from skillhub_mcp.config import MCPSettings
 from skillhub_mcp.tools.fork import fork_skill as _fork_skill
+from skillhub_mcp.tracing import setup_tracing
 from skillhub_mcp.tools.get_skill import get_skill as _get_skill
 from skillhub_mcp.tools.install import install_skill as _install_skill
 from skillhub_mcp.tools.list_installed import list_installed as _list_installed
 from skillhub_mcp.tools.search import search_skills as _search_skills
 from skillhub_mcp.tools.status import get_submission_status as _get_submission_status
 from skillhub_mcp.tools.submit import submit_skill as _submit_skill
+from skillhub_mcp.tools.uninstall import uninstall_skill as _uninstall_skill
 from skillhub_mcp.tools.update import update_skill as _update_skill
 
 logger = logging.getLogger(__name__)
 
 settings = MCPSettings()
+tracer = setup_tracing(settings)
 
 mcp = FastMCP(
     name="SkillHub",
@@ -47,13 +50,19 @@ def _decode_token(token: str) -> dict[str, Any]:
 @mcp.tool(
     name="search_skills",
     description="Search and browse skills in the SkillHub marketplace. "
-    "Filter by query, category, divisions, or sort order.",
+    "Filter by query, category, divisions, sort order, install method, "
+    "verified/featured status, and pagination.",
 )
 async def search_skills_tool(
     query: str | None = None,
     category: str | None = None,
     divisions: list[str] | None = None,
     sort: str | None = None,
+    install_method: str | None = None,
+    verified: bool | None = None,
+    featured: bool | None = None,
+    page: int = 1,
+    per_page: int = 20,
     token: str | None = None,
 ) -> dict[str, Any]:
     """Search skills with optional filters."""
@@ -63,6 +72,11 @@ async def search_skills_tool(
         category=category,
         divisions=divisions,
         sort=sort,
+        install_method=install_method,
+        verified=verified,
+        featured=featured,
+        page=page,
+        per_page=per_page,
         api_client=client,
     )
 
@@ -132,7 +146,28 @@ async def update_skill_tool(
     )
 
 
-# --- Tool 5: list_installed ---
+# --- Tool 5: uninstall_skill ---
+
+
+@mcp.tool(
+    name="uninstall_skill",
+    description="Uninstall a skill by removing it from the local filesystem "
+    "and recording the uninstall via the API.",
+)
+async def uninstall_skill_tool(
+    slug: str,
+    token: str | None = None,
+) -> dict[str, Any]:
+    """Uninstall a locally installed skill."""
+    client = _get_api_client(token)
+    return await _uninstall_skill(
+        slug=slug,
+        settings=settings,
+        api_client=client,
+    )
+
+
+# --- Tool 6: list_installed ---
 
 
 @mcp.tool(
@@ -168,15 +203,24 @@ async def fork_skill_tool(
 
 @mcp.tool(
     name="submit_skill",
-    description="Submit a local SKILL.md file for review and publication.",
+    description="Submit a local SKILL.md file for review and publication. "
+    "Parses frontmatter for name/category/short_desc. "
+    "Requires declared_divisions listing which org divisions should access the skill.",
 )
 async def submit_skill_tool(
     skill_md_path: str,
+    declared_divisions: list[str],
+    division_justification: str = "",
     token: str | None = None,
 ) -> dict[str, Any]:
     """Submit a skill file for review."""
     client = _get_api_client(token)
-    return await _submit_skill(skill_md_path=skill_md_path, api_client=client)
+    return await _submit_skill(
+        skill_md_path=skill_md_path,
+        declared_divisions=declared_divisions,
+        division_justification=division_justification,
+        api_client=client,
+    )
 
 
 # --- Tool 8: get_submission_status ---

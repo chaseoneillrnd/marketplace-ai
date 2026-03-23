@@ -20,7 +20,7 @@ export interface SkillSummary {
   fork_count: number;
   favorite_count: number;
   avg_rating: number;
-  rating_count: number;
+  review_count: number;
   days_ago: number | null;
   user_has_installed?: boolean | null;
   user_has_favorited?: boolean | null;
@@ -261,7 +261,46 @@ export const DIVISION_COLORS: Record<string, string> = {
   'Executive Office': '#ef5060',
   'Sales & Marketing': '#fb923c',
   'Customer Success': '#84cc16',
+  // Slug-keyed aliases (API returns slugs)
+  'engineering-org': '#4b7dff',
+  'product-org': '#a78bfa',
+  'finance-legal': '#1fd49e',
+  'people-hr': '#f2a020',
+  'operations': '#22d3ee',
+  'executive-office': '#ef5060',
+  'sales-marketing': '#fb923c',
+  'customer-success': '#84cc16',
 };
+
+/** Map display category names to API slugs (matches categories.slug in DB). */
+export const CATEGORY_SLUG_MAP: Record<string, string> = {
+  Engineering: 'engineering',
+  Product: 'product',
+  Data: 'data',
+  Security: 'security',
+  Finance: 'finance',
+  General: 'general',
+  HR: 'hr',
+  Research: 'research',
+  Operations: 'operations',
+};
+
+/** Map display division names to API slugs (matches divisions.slug in DB). */
+export const DIVISION_SLUG_MAP: Record<string, string> = {
+  'Engineering Org': 'engineering-org',
+  'Product Org': 'product-org',
+  'Finance & Legal': 'finance-legal',
+  'People & HR': 'people-hr',
+  'Operations': 'operations',
+  'Executive Office': 'executive-office',
+  'Sales & Marketing': 'sales-marketing',
+  'Customer Success': 'customer-success',
+};
+
+/** Reverse map: API slug → display name (for rendering API responses). */
+export const DIVISION_NAME_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(DIVISION_SLUG_MAP).map(([name, slug]) => [slug, name]),
+);
 
 export const OAUTH_PROVIDERS = [
   { id: 'microsoft', label: 'Microsoft / Azure AD', color: '#0078d4', hint: 'Most common for enterprise orgs' },

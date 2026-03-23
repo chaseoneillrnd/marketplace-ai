@@ -1,4 +1,4 @@
-import { DIVISION_COLORS } from '@skillhub/shared-types';
+import { DIVISION_COLORS, DIVISION_NAME_MAP } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
 
 export function DivisionChip({ division, active = false, onClick, small = false }: Props) {
   const color = DIVISION_COLORS[division] ?? '#888';
+  const displayName = DIVISION_NAME_MAP[division] ?? division;
   return (
     <span
       onClick={onClick}
@@ -29,7 +30,7 @@ export function DivisionChip({ division, active = false, onClick, small = false 
         boxShadow: active ? `0 0 0 2px ${color}22` : 'none',
       }}
     >
-      {division}
+      {displayName}
     </span>
   );
 }

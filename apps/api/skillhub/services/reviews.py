@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from opentelemetry import trace
 from skillhub_db.models.audit import AuditLog
 from skillhub_db.models.skill import Skill
 from skillhub_db.models.social import (
@@ -23,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("skillhub.services.reviews")
 
 # Bayesian rating constants
 BAYESIAN_C = 5
@@ -95,20 +97,25 @@ def list_reviews(
     per_page: int = 20,
 ) -> tuple[list[dict[str, Any]], int]:
     """Get paginated reviews for a skill, sorted by helpful_count DESC."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.list_reviews") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.page", page)
 
-    query = db.query(Review).filter(Review.skill_id == skill.id)
-    total = query.count()
+        skill = _get_skill_by_slug(db, slug)
 
-    offset = (page - 1) * per_page
-    reviews = (
-        query.order_by(Review.helpful_count.desc())
-        .offset(offset)
-        .limit(per_page)
-        .all()
-    )
+        query = db.query(Review).filter(Review.skill_id == skill.id)
+        total = query.count()
+        span.set_attribute("reviews.total", total)
 
-    return [_review_to_dict(r) for r in reviews], total
+        offset = (page - 1) * per_page
+        reviews = (
+            query.order_by(Review.helpful_count.desc())
+            .offset(offset)
+            .limit(per_page)
+            .all()
+        )
+
+        return [_review_to_dict(r) for r in reviews], total
 
 
 def create_review(
@@ -119,40 +126,47 @@ def create_review(
     body: str,
 ) -> dict[str, Any]:
     """Create a review. Raises DuplicateReviewError if already reviewed."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.create_review") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.user_id", str(user_id))
+        span.set_attribute("reviews.rating", rating)
 
-    review = Review(
-        id=uuid.uuid4(),
-        skill_id=skill.id,
-        user_id=user_id,
-        rating=rating,
-        body=body,
-        helpful_count=0,
-        unhelpful_count=0,
-    )
-    db.add(review)
+        skill = _get_skill_by_slug(db, slug)
 
-    try:
-        db.flush()
-    except IntegrityError as err:
-        db.rollback()
-        raise DuplicateReviewError("User has already reviewed this skill") from err
+        review = Review(
+            id=uuid.uuid4(),
+            skill_id=skill.id,
+            user_id=user_id,
+            rating=rating,
+            body=body,
+            helpful_count=0,
+            unhelpful_count=0,
+        )
+        db.add(review)
 
-    _recalculate_avg_rating(db, skill.id)
+        try:
+            db.flush()
+        except IntegrityError as err:
+            db.rollback()
+            span.set_attribute("reviews.result", "duplicate")
+            raise DuplicateReviewError("User has already reviewed this skill") from err
 
-    _write_audit(
-        db,
-        event_type="review.created",
-        actor_id=user_id,
-        target_type="review",
-        target_id=str(review.id),
-        metadata={"skill_slug": slug, "rating": rating},
-    )
+        _recalculate_avg_rating(db, skill.id)
 
-    db.commit()
-    db.refresh(review)
+        _write_audit(
+            db,
+            event_type="review.created",
+            actor_id=user_id,
+            target_type="review",
+            target_id=str(review.id),
+            metadata={"skill_slug": slug, "rating": rating},
+        )
 
-    return _review_to_dict(review)
+        db.commit()
+        db.refresh(review)
+
+        span.set_attribute("reviews.result", "success")
+        return _review_to_dict(review)
 
 
 def update_review(
@@ -165,39 +179,47 @@ def update_review(
     body: str | None = None,
 ) -> dict[str, Any]:
     """Update a review. Only the owner can update. Raises PermissionError if not owner."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.update_review") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.review_id", str(review_id))
+        span.set_attribute("reviews.user_id", str(user_id))
 
-    review = (
-        db.query(Review)
-        .filter(Review.id == review_id, Review.skill_id == skill.id)
-        .first()
-    )
-    if not review:
-        raise ValueError("Review not found")
+        skill = _get_skill_by_slug(db, slug)
 
-    if review.user_id != user_id:
-        raise PermissionError("Only the review owner can update")
+        review = (
+            db.query(Review)
+            .filter(Review.id == review_id, Review.skill_id == skill.id)
+            .first()
+        )
+        if not review:
+            span.set_attribute("reviews.result", "not_found")
+            raise ValueError("Review not found")
 
-    if rating is not None:
-        review.rating = rating
-    if body is not None:
-        review.body = body
+        if review.user_id != user_id:
+            span.set_attribute("reviews.result", "forbidden")
+            raise PermissionError("Only the review owner can update")
 
-    _recalculate_avg_rating(db, skill.id)
+        if rating is not None:
+            review.rating = rating
+        if body is not None:
+            review.body = body
 
-    _write_audit(
-        db,
-        event_type="review.updated",
-        actor_id=user_id,
-        target_type="review",
-        target_id=str(review.id),
-        metadata={"skill_slug": slug},
-    )
+        _recalculate_avg_rating(db, skill.id)
 
-    db.commit()
-    db.refresh(review)
+        _write_audit(
+            db,
+            event_type="review.updated",
+            actor_id=user_id,
+            target_type="review",
+            target_id=str(review.id),
+            metadata={"skill_slug": slug},
+        )
 
-    return _review_to_dict(review)
+        db.commit()
+        db.refresh(review)
+
+        span.set_attribute("reviews.result", "success")
+        return _review_to_dict(review)
 
 
 def vote_on_review(
@@ -208,51 +230,61 @@ def vote_on_review(
     vote: str,
 ) -> None:
     """Vote on a review (upsert). Updates helpful/unhelpful counts."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.vote_on_review") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.review_id", str(review_id))
+        span.set_attribute("reviews.user_id", str(user_id))
+        span.set_attribute("reviews.vote", vote)
 
-    review = (
-        db.query(Review)
-        .filter(Review.id == review_id, Review.skill_id == skill.id)
-        .first()
-    )
-    if not review:
-        raise ValueError("Review not found")
+        skill = _get_skill_by_slug(db, slug)
 
-    vote_type = VoteType(vote)
+        review = (
+            db.query(Review)
+            .filter(Review.id == review_id, Review.skill_id == skill.id)
+            .first()
+        )
+        if not review:
+            span.set_attribute("reviews.result", "not_found")
+            raise ValueError("Review not found")
 
-    existing = (
-        db.query(ReviewVote)
-        .filter(ReviewVote.review_id == review_id, ReviewVote.user_id == user_id)
-        .first()
-    )
+        vote_type = VoteType(vote)
 
-    if existing:
-        old_vote = existing.vote
-        existing.vote = vote_type
-        # Adjust counts
-        if old_vote == VoteType.HELPFUL:
-            review.helpful_count = max(0, review.helpful_count - 1)
+        existing = (
+            db.query(ReviewVote)
+            .filter(ReviewVote.review_id == review_id, ReviewVote.user_id == user_id)
+            .first()
+        )
+
+        if existing:
+            if existing.vote == vote_type:
+                return
+            old_vote = existing.vote
+            existing.vote = vote_type
+            # Adjust counts
+            if old_vote == VoteType.HELPFUL:
+                review.helpful_count = max(0, review.helpful_count - 1)
+            else:
+                review.unhelpful_count = max(0, review.unhelpful_count - 1)
         else:
-            review.unhelpful_count = max(0, review.unhelpful_count - 1)
-    else:
-        rv = ReviewVote(review_id=review_id, user_id=user_id, vote=vote_type)
-        db.add(rv)
+            rv = ReviewVote(review_id=review_id, user_id=user_id, vote=vote_type)
+            db.add(rv)
 
-    if vote_type == VoteType.HELPFUL:
-        review.helpful_count += 1
-    else:
-        review.unhelpful_count += 1
+        if vote_type == VoteType.HELPFUL:
+            review.helpful_count += 1
+        else:
+            review.unhelpful_count += 1
 
-    _write_audit(
-        db,
-        event_type="review.voted",
-        actor_id=user_id,
-        target_type="review",
-        target_id=str(review_id),
-        metadata={"vote": vote, "skill_slug": slug},
-    )
+        _write_audit(
+            db,
+            event_type="review.voted",
+            actor_id=user_id,
+            target_type="review",
+            target_id=str(review_id),
+            metadata={"vote": vote, "skill_slug": slug},
+        )
 
-    db.commit()
+        db.commit()
+        span.set_attribute("reviews.result", "success")
 
 
 # --- Comments ---
@@ -266,25 +298,29 @@ def list_comments(
     per_page: int = 20,
 ) -> tuple[list[dict[str, Any]], int]:
     """Get paginated comments with nested replies."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.list_comments") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.page", page)
 
-    query = (
-        db.query(Comment)
-        .options(joinedload(Comment.replies))
-        .filter(Comment.skill_id == skill.id)
-    )
-    total = query.count()
+        skill = _get_skill_by_slug(db, slug)
 
-    offset = (page - 1) * per_page
-    comments = (
-        query.order_by(Comment.created_at.desc())
-        .offset(offset)
-        .limit(per_page)
-        .unique()
-        .all()
-    )
+        query = (
+            db.query(Comment)
+            .options(joinedload(Comment.replies))
+            .filter(Comment.skill_id == skill.id, Comment.deleted_at.is_(None))
+        )
+        total = query.count()
+        span.set_attribute("reviews.total_comments", total)
 
-    return [_comment_to_dict(c) for c in comments], total
+        offset = (page - 1) * per_page
+        comments = (
+            query.order_by(Comment.created_at.desc())
+            .offset(offset)
+            .limit(per_page)
+            .all()
+        )
+
+        return [_comment_to_dict(c) for c in comments], total
 
 
 def create_comment(
@@ -294,30 +330,35 @@ def create_comment(
     body: str,
 ) -> dict[str, Any]:
     """Create a comment on a skill."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.create_comment") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.user_id", str(user_id))
 
-    comment = Comment(
-        id=uuid.uuid4(),
-        skill_id=skill.id,
-        user_id=user_id,
-        body=body,
-        upvote_count=0,
-    )
-    db.add(comment)
+        skill = _get_skill_by_slug(db, slug)
 
-    _write_audit(
-        db,
-        event_type="comment.created",
-        actor_id=user_id,
-        target_type="comment",
-        target_id=str(comment.id),
-        metadata={"skill_slug": slug},
-    )
+        comment = Comment(
+            id=uuid.uuid4(),
+            skill_id=skill.id,
+            user_id=user_id,
+            body=body,
+            upvote_count=0,
+        )
+        db.add(comment)
 
-    db.commit()
-    db.refresh(comment)
+        _write_audit(
+            db,
+            event_type="comment.created",
+            actor_id=user_id,
+            target_type="comment",
+            target_id=str(comment.id),
+            metadata={"skill_slug": slug},
+        )
 
-    return _comment_to_dict(comment)
+        db.commit()
+        db.refresh(comment)
+
+        span.set_attribute("reviews.result", "success")
+        return _comment_to_dict(comment)
 
 
 def delete_comment(
@@ -328,36 +369,46 @@ def delete_comment(
     is_platform_team: bool = False,
 ) -> dict[str, Any]:
     """Soft delete a comment. Owner or platform team only."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.delete_comment") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.comment_id", str(comment_id))
+        span.set_attribute("reviews.user_id", str(user_id))
 
-    comment = (
-        db.query(Comment)
-        .options(joinedload(Comment.replies))
-        .filter(Comment.id == comment_id, Comment.skill_id == skill.id)
-        .first()
-    )
-    if not comment:
-        raise ValueError("Comment not found")
+        skill = _get_skill_by_slug(db, slug)
 
-    if comment.user_id != user_id and not is_platform_team:
-        raise PermissionError("Only the comment owner or platform team can delete")
+        comment = (
+            db.query(Comment)
+            .options(joinedload(Comment.replies))
+            .filter(Comment.id == comment_id, Comment.skill_id == skill.id)
+            .first()
+        )
+        if not comment:
+            span.set_attribute("reviews.result", "not_found")
+            raise ValueError("Comment not found")
 
-    comment.body = "[deleted]"
-    comment.deleted_at = func.now()
+        if comment.user_id != user_id and not is_platform_team:
+            span.set_attribute("reviews.result", "forbidden")
+            raise PermissionError("Only the comment owner or platform team can delete")
 
-    _write_audit(
-        db,
-        event_type="comment.deleted",
-        actor_id=user_id,
-        target_type="comment",
-        target_id=str(comment_id),
-        metadata={"skill_slug": slug},
-    )
+        comment.body = "[deleted]"
+        db.query(Comment).filter(Comment.id == comment.id).update(
+            {Comment.deleted_at: func.now()}
+        )
 
-    db.commit()
-    db.refresh(comment)
+        _write_audit(
+            db,
+            event_type="comment.deleted",
+            actor_id=user_id,
+            target_type="comment",
+            target_id=str(comment_id),
+            metadata={"skill_slug": slug},
+        )
 
-    return _comment_to_dict(comment)
+        db.commit()
+        db.refresh(comment)
+
+        span.set_attribute("reviews.result", "success")
+        return _comment_to_dict(comment)
 
 
 def create_reply(
@@ -368,37 +419,44 @@ def create_reply(
     body: str,
 ) -> dict[str, Any]:
     """Create a reply to a comment."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.create_reply") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.comment_id", str(comment_id))
+        span.set_attribute("reviews.user_id", str(user_id))
 
-    comment = (
-        db.query(Comment)
-        .filter(Comment.id == comment_id, Comment.skill_id == skill.id)
-        .first()
-    )
-    if not comment:
-        raise ValueError("Comment not found")
+        skill = _get_skill_by_slug(db, slug)
 
-    reply = Reply(
-        id=uuid.uuid4(),
-        comment_id=comment_id,
-        user_id=user_id,
-        body=body,
-    )
-    db.add(reply)
+        comment = (
+            db.query(Comment)
+            .filter(Comment.id == comment_id, Comment.skill_id == skill.id)
+            .first()
+        )
+        if not comment:
+            span.set_attribute("reviews.result", "not_found")
+            raise ValueError("Comment not found")
 
-    _write_audit(
-        db,
-        event_type="comment.replied",
-        actor_id=user_id,
-        target_type="reply",
-        target_id=str(reply.id),
-        metadata={"skill_slug": slug, "comment_id": str(comment_id)},
-    )
+        reply = Reply(
+            id=uuid.uuid4(),
+            comment_id=comment_id,
+            user_id=user_id,
+            body=body,
+        )
+        db.add(reply)
 
-    db.commit()
-    db.refresh(reply)
+        _write_audit(
+            db,
+            event_type="comment.replied",
+            actor_id=user_id,
+            target_type="reply",
+            target_id=str(reply.id),
+            metadata={"skill_slug": slug, "comment_id": str(comment_id)},
+        )
 
-    return _reply_to_dict(reply)
+        db.commit()
+        db.refresh(reply)
+
+        span.set_attribute("reviews.result", "success")
+        return _reply_to_dict(reply)
 
 
 def vote_on_comment(
@@ -408,40 +466,48 @@ def vote_on_comment(
     user_id: UUID,
 ) -> None:
     """Upvote a comment (upsert — idempotent)."""
-    skill = _get_skill_by_slug(db, slug)
+    with tracer.start_as_current_span("service.reviews.vote_on_comment") as span:
+        span.set_attribute("reviews.slug", slug)
+        span.set_attribute("reviews.comment_id", str(comment_id))
+        span.set_attribute("reviews.user_id", str(user_id))
 
-    comment = (
-        db.query(Comment)
-        .filter(Comment.id == comment_id, Comment.skill_id == skill.id)
-        .first()
-    )
-    if not comment:
-        raise ValueError("Comment not found")
+        skill = _get_skill_by_slug(db, slug)
 
-    existing = (
-        db.query(CommentVote)
-        .filter(CommentVote.comment_id == comment_id, CommentVote.user_id == user_id)
-        .first()
-    )
-    if existing:
-        # Already voted — idempotent
-        return
+        comment = (
+            db.query(Comment)
+            .filter(Comment.id == comment_id, Comment.skill_id == skill.id)
+            .first()
+        )
+        if not comment:
+            span.set_attribute("reviews.result", "not_found")
+            raise ValueError("Comment not found")
 
-    cv = CommentVote(comment_id=comment_id, user_id=user_id)
-    db.add(cv)
+        existing = (
+            db.query(CommentVote)
+            .filter(CommentVote.comment_id == comment_id, CommentVote.user_id == user_id)
+            .first()
+        )
+        if existing:
+            span.set_attribute("reviews.result", "already_voted")
+            # Already voted — idempotent
+            return
 
-    comment.upvote_count += 1
+        cv = CommentVote(comment_id=comment_id, user_id=user_id)
+        db.add(cv)
 
-    _write_audit(
-        db,
-        event_type="comment.voted",
-        actor_id=user_id,
-        target_type="comment",
-        target_id=str(comment_id),
-        metadata={"skill_slug": slug},
-    )
+        comment.upvote_count += 1
 
-    db.commit()
+        _write_audit(
+            db,
+            event_type="comment.voted",
+            actor_id=user_id,
+            target_type="comment",
+            target_id=str(comment_id),
+            metadata={"skill_slug": slug},
+        )
+
+        db.commit()
+        span.set_attribute("reviews.result", "success")
 
 
 # --- Helpers ---

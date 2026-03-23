@@ -50,7 +50,8 @@ class TestInstallSkill:
         """Install in authorized division succeeds."""
         db = MagicMock()
         skill = _mock_skill()
-        db.query.return_value.filter.return_value.first.return_value = skill
+        # First .first() returns skill, second returns None (no existing install)
+        db.query.return_value.filter.return_value.first.side_effect = [skill, None]
         # count for has_divisions = 1
         db.query.return_value.select_from.return_value.filter.return_value.scalar.side_effect = [1, 1]
         # After commit + refresh, the install should have attrs
@@ -83,7 +84,7 @@ class TestInstallSkill:
         """Install writes audit_log entry."""
         db = MagicMock()
         skill = _mock_skill()
-        db.query.return_value.filter.return_value.first.return_value = skill
+        db.query.return_value.filter.return_value.first.side_effect = [skill, None]
         db.query.return_value.select_from.return_value.filter.return_value.scalar.side_effect = [1, 1]
 
         install_skill(db, "test-skill", USER_ID, "engineering", "claude-code", "1.0.0")
@@ -96,7 +97,7 @@ class TestInstallSkill:
         """Install atomically increments install_count."""
         db = MagicMock()
         skill = _mock_skill()
-        db.query.return_value.filter.return_value.first.return_value = skill
+        db.query.return_value.filter.return_value.first.side_effect = [skill, None]
         db.query.return_value.select_from.return_value.filter.return_value.scalar.side_effect = [1, 1]
 
         install_skill(db, "test-skill", USER_ID, "engineering", "claude-code", "1.0.0")
@@ -118,7 +119,8 @@ class TestInstallSkill:
         """Install on skill with no division restrictions always succeeds."""
         db = MagicMock()
         skill = _mock_skill()
-        db.query.return_value.filter.return_value.first.return_value = skill
+        # First .first() returns skill, second returns None (no existing install)
+        db.query.return_value.filter.return_value.first.side_effect = [skill, None]
         # has_divisions = 0 (no restrictions)
         db.query.return_value.select_from.return_value.filter.return_value.scalar.return_value = 0
 
@@ -133,7 +135,7 @@ class TestUninstallSkill:
     """Tests for uninstall_skill service function."""
 
     def test_uninstall_sets_uninstalled_at(self) -> None:
-        """Uninstall sets uninstalled_at timestamp."""
+        """Uninstall uses query-based update for uninstalled_at."""
         db = MagicMock()
         skill = _mock_skill()
         install = MagicMock()
@@ -142,7 +144,8 @@ class TestUninstallSkill:
 
         uninstall_skill(db, "test-skill", USER_ID)
 
-        assert install.uninstalled_at is not None
+        # Query-based update is called (not direct attribute assignment)
+        assert db.query.return_value.filter.return_value.update.called
         db.commit.assert_called_once()
 
     def test_uninstall_no_active_install_raises(self) -> None:

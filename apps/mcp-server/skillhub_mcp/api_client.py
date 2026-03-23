@@ -6,8 +6,10 @@ import logging
 from typing import Any
 
 import httpx
+from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
+_tracer = trace.get_tracer(__name__)
 
 
 class APIClient:
@@ -25,16 +27,48 @@ class APIClient:
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Send an async GET request."""
-        url = f"{self.base_url}{path}"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=self._headers(), params=params)
-            response.raise_for_status()
-            return response
+        with _tracer.start_as_current_span("http.get") as span:
+            span.set_attribute("http.method", "GET")
+            span.set_attribute("http.path", path)
+            url = f"{self.base_url}{path}"
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=self._headers(), params=params)
+                span.set_attribute("http.status_code", response.status_code)
+                response.raise_for_status()
+                return response
 
     async def post(self, path: str, json: dict[str, Any] | None = None) -> httpx.Response:
         """Send an async POST request."""
-        url = f"{self.base_url}{path}"
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=self._headers(), json=json)
-            response.raise_for_status()
-            return response
+        with _tracer.start_as_current_span("http.post") as span:
+            span.set_attribute("http.method", "POST")
+            span.set_attribute("http.path", path)
+            url = f"{self.base_url}{path}"
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=self._headers(), json=json)
+                span.set_attribute("http.status_code", response.status_code)
+                response.raise_for_status()
+                return response
+
+    async def patch(self, path: str, json: dict[str, Any] | None = None) -> httpx.Response:
+        """Send an async PATCH request."""
+        with _tracer.start_as_current_span("http.patch") as span:
+            span.set_attribute("http.method", "PATCH")
+            span.set_attribute("http.path", path)
+            url = f"{self.base_url}{path}"
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(url, headers=self._headers(), json=json)
+                span.set_attribute("http.status_code", response.status_code)
+                response.raise_for_status()
+                return response
+
+    async def delete(self, path: str) -> httpx.Response:
+        """Send an async DELETE request."""
+        with _tracer.start_as_current_span("http.delete") as span:
+            span.set_attribute("http.method", "DELETE")
+            span.set_attribute("http.path", path)
+            url = f"{self.base_url}{path}"
+            async with httpx.AsyncClient() as client:
+                response = await client.delete(url, headers=self._headers())
+                span.set_attribute("http.status_code", response.status_code)
+                response.raise_for_status()
+                return response

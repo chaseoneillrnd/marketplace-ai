@@ -6,11 +6,12 @@ import logging
 from typing import Annotated, Any
 from uuid import UUID
 
-import jwt as pyjwt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from skillhub.dependencies import get_current_user, get_db
+from skillhub_db.session import SessionLocal
+
+from skillhub.dependencies import get_current_user, get_db, get_optional_user
 from skillhub.schemas.skill import (
     SkillBrowseResponse,
     SkillDetail,
@@ -24,24 +25,6 @@ from skillhub.services.skills import browse_skills, get_skill_detail, increment_
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/skills", tags=["skills"])
-
-
-def _optional_auth(request: Request) -> dict[str, Any] | None:
-    """Extract user from JWT if present, otherwise return None."""
-    auth = request.headers.get("Authorization")
-    if not auth or not auth.startswith("Bearer "):
-        return None
-    token = auth.removeprefix("Bearer ")
-    settings = request.app.state.settings
-    try:
-        payload: dict[str, Any] = pyjwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.jwt_algorithm],
-        )
-    except Exception:
-        return None
-    return payload
 
 
 @router.get("", response_model=SkillBrowseResponse)
@@ -59,7 +42,7 @@ def list_skills(
     per_page: int = Query(default=20, ge=1, le=100),
 ) -> SkillBrowseResponse:
     """Browse/search skills with filters, sorting, and pagination."""
-    user = _optional_auth(request)
+    user = get_optional_user(request)
     current_user_id: UUID | None = None
     if user and user.get("user_id"):
         current_user_id = UUID(user["user_id"])
@@ -90,6 +73,17 @@ def list_skills(
     )
 
 
+@router.get("/categories")
+def list_categories(
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, Any]]:
+    """List all available categories."""
+    from skillhub_db.models.skill import Category
+
+    categories = db.query(Category).order_by(Category.sort_order).all()
+    return [{"slug": c.slug, "name": c.name, "sort_order": c.sort_order} for c in categories]
+
+
 @router.get("/{slug}", response_model=SkillDetail)
 def get_skill(
     slug: str,
@@ -98,7 +92,7 @@ def get_skill(
     db: Annotated[Session, Depends(get_db)],
 ) -> SkillDetail:
     """Get full skill detail by slug."""
-    user = _optional_auth(request)
+    user = get_optional_user(request)
     current_user_id: UUID | None = None
     if user and user.get("user_id"):
         current_user_id = UUID(user["user_id"])
@@ -110,9 +104,18 @@ def get_skill(
             detail=f"Skill '{slug}' not found",
         )
 
-    # Fire-and-forget view count increment
+    # Fire-and-forget view count increment — use a fresh session because
+    # the request-scoped `db` may be closed by the time the task runs.
     skill_id = result["id"]
-    background_tasks.add_task(increment_view_count, db, skill_id)
+
+    def _bg_increment_view(sid: UUID) -> None:
+        bg_db = SessionLocal()
+        try:
+            increment_view_count(bg_db, sid)
+        finally:
+            bg_db.close()
+
+    background_tasks.add_task(_bg_increment_view, skill_id)
 
     return SkillDetail(**result)
 

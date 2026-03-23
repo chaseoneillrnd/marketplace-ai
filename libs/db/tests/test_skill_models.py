@@ -40,7 +40,7 @@ class TestSkill:
         assert skill.trending_score == Decimal("0.0000")
 
     def test_skill_status_defaults_to_draft(self, db: Session, skill):
-        assert skill.status.value == "draft"
+        assert skill.status == "draft"
 
 
 class TestSkillVersion:

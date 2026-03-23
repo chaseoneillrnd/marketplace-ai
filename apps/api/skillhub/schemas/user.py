@@ -49,7 +49,7 @@ class UserSkillSummary(BaseModel):
     fork_count: int
     favorite_count: int
     avg_rating: Decimal
-    rating_count: int
+    review_count: int
     days_ago: int | None = None
     user_has_installed: bool | None = None
     user_has_favorited: bool | None = None

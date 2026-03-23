@@ -6,10 +6,12 @@ import logging
 from typing import Any
 
 import httpx
+from opentelemetry import trace
 
 from skillhub.schemas.submission import GateFinding, JudgeVerdict
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("skillhub.services.llm_judge")
 
 # System prompt for the LLM judge
 JUDGE_SYSTEM_PROMPT = """You are a skill quality evaluator for SkillHub.
@@ -35,64 +37,74 @@ class LLMJudgeService:
         If disabled or router_url is empty, returns a skip verdict.
         On HTTP error/timeout, returns a safe failure verdict.
         """
-        if not self.enabled or not self.router_url:
-            return JudgeVerdict(
-                **{"pass": True},
-                score=85,
-                findings=[],
-                summary="Skipped — LLM judge disabled",
-            )
+        with tracer.start_as_current_span("service.llm_judge.evaluate") as span:
+            span.set_attribute("llm_judge.enabled", self.enabled)
+            span.set_attribute("llm_judge.router_url", self.router_url or "")
 
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.router_url}/v1/chat/completions",
-                    json={
-                        "model": "skillhub-judge",
-                        "messages": [
-                            {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
-                            {"role": "user", "content": content},
-                        ],
-                        "response_format": {"type": "json_object"},
-                    },
+            if not self.enabled or not self.router_url:
+                span.set_attribute("llm_judge.result", "skipped")
+                return JudgeVerdict(
+                    **{"pass": True},
+                    score=0,
+                    findings=[],
+                    summary="LLM judge disabled — auto-pass",
+                    skipped=True,
                 )
-                response.raise_for_status()
-                data = response.json()
-                message_content = data["choices"][0]["message"]["content"]
 
-                import json
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{self.router_url}/v1/chat/completions",
+                        json={
+                            "model": "skillhub-judge",
+                            "messages": [
+                                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                                {"role": "user", "content": content},
+                            ],
+                            "response_format": {"type": "json_object"},
+                        },
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    message_content = data["choices"][0]["message"]["content"]
 
-                verdict_data = json.loads(message_content)
-                return JudgeVerdict(**verdict_data)
+                    import json
 
-        except httpx.TimeoutException:
-            logger.warning("LLM judge timed out")
-            return JudgeVerdict(
-                **{"pass": False},
-                score=0,
-                findings=[
-                    GateFinding(
-                        severity="high",
-                        category="quality",
-                        description="Judge unavailable — request timed out",
-                    ),
-                ],
-                summary="Judge unavailable — timeout",
-            )
-        except Exception:
-            logger.exception("LLM judge error")
-            return JudgeVerdict(
-                **{"pass": False},
-                score=0,
-                findings=[
-                    GateFinding(
-                        severity="high",
-                        category="quality",
-                        description="Judge unavailable",
-                    ),
-                ],
-                summary="Judge unavailable — error",
-            )
+                    verdict_data = json.loads(message_content)
+                    span.set_attribute("llm_judge.result", "success")
+                    span.set_attribute("llm_judge.score", verdict_data.get("score", 0))
+                    return JudgeVerdict(**verdict_data)
+
+            except httpx.TimeoutException:
+                logger.warning("LLM judge timed out")
+                span.set_attribute("llm_judge.result", "timeout")
+                return JudgeVerdict(
+                    **{"pass": False},
+                    score=0,
+                    findings=[
+                        GateFinding(
+                            severity="high",
+                            category="quality",
+                            description="Judge unavailable — request timed out",
+                        ),
+                    ],
+                    summary="Judge unavailable — timeout",
+                )
+            except Exception:
+                logger.exception("LLM judge error")
+                span.set_attribute("llm_judge.result", "error")
+                return JudgeVerdict(
+                    **{"pass": False},
+                    score=0,
+                    findings=[
+                        GateFinding(
+                            severity="high",
+                            category="quality",
+                            description="Judge unavailable",
+                        ),
+                    ],
+                    summary="Judge unavailable — error",
+                )
 
 
 def evaluate_gate2_sync(
@@ -102,29 +114,49 @@ def evaluate_gate2_sync(
 
     Returns (status_value, gate_result_dict).
     """
-    has_critical = any(f.severity == "critical" for f in verdict.findings)
+    with tracer.start_as_current_span("service.llm_judge.evaluate_gate2_sync") as span:
+        span.set_attribute("llm_judge.verdict_score", verdict.score)
+        span.set_attribute("llm_judge.verdict_pass", verdict.pass_)
 
-    if has_critical or not verdict.pass_:
-        status = "gate2_failed"
-        result = "failed"
-    elif verdict.score < 70:
-        status = "gate2_failed"
-        result = "failed"
-    elif any(f.severity == "high" for f in verdict.findings):
-        status = "gate2_flagged"
-        result = "flagged"
-    else:
-        status = "gate2_passed"
-        result = "passed"
+        # If skipped (judge disabled), auto-pass without score check
+        if verdict.skipped:
+            span.set_attribute("llm_judge.gate2_status", "gate2_passed")
+            findings = [
+                {"severity": f.severity, "category": f.category, "description": f.description}
+                for f in verdict.findings
+            ]
+            return "gate2_passed", {
+                "result": "passed",
+                "score": verdict.score,
+                "findings": findings,
+                "summary": verdict.summary,
+            }
 
-    findings = [
-        {"severity": f.severity, "category": f.category, "description": f.description}
-        for f in verdict.findings
-    ]
+        has_critical = any(f.severity == "critical" for f in verdict.findings)
 
-    return status, {
-        "result": result,
-        "score": verdict.score,
-        "findings": findings,
-        "summary": verdict.summary,
-    }
+        if has_critical or not verdict.pass_:
+            status = "gate2_failed"
+            result = "failed"
+        elif verdict.score < 70:
+            status = "gate2_failed"
+            result = "failed"
+        elif any(f.severity == "high" for f in verdict.findings):
+            status = "gate2_flagged"
+            result = "flagged"
+        else:
+            status = "gate2_passed"
+            result = "passed"
+
+        span.set_attribute("llm_judge.gate2_status", status)
+
+        findings = [
+            {"severity": f.severity, "category": f.category, "description": f.description}
+            for f in verdict.findings
+        ]
+
+        return status, {
+            "result": result,
+            "score": verdict.score,
+            "findings": findings,
+            "summary": verdict.summary,
+        }

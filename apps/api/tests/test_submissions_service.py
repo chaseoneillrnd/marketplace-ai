@@ -228,7 +228,7 @@ class TestGetSubmission:
         result = get_submission(db, uuid.uuid4(), user_id=uuid.uuid4())
         assert result is None
 
-    def test_wrong_user_returns_none(self) -> None:
+    def test_wrong_user_raises_permission_error(self) -> None:
         db = _mock_db_session()
         submission = MagicMock()
         submission.id = uuid.uuid4()
@@ -236,9 +236,8 @@ class TestGetSubmission:
         submission.status.value = "submitted"
         submission.declared_divisions = []
         db.query.return_value.filter.return_value.first.return_value = submission
-        # Different user
-        result = get_submission(db, submission.id, user_id=uuid.uuid4())
-        assert result is None
+        with pytest.raises(PermissionError, match="Not authorized"):
+            get_submission(db, submission.id, user_id=uuid.uuid4())
 
     def test_platform_team_can_view_any(self) -> None:
         db = _mock_db_session()
@@ -282,7 +281,13 @@ class TestReviewSubmission:
         submission.submitted_by = uuid.uuid4()
         submission.declared_divisions = ["engineering"]
         submission.display_id = "SKL-ABC123"
-        db.query.return_value.filter.return_value.first.return_value = submission
+        submission.status = MagicMock(value="gate2_passed")
+
+        # First call returns submission (lookup), second returns None (slug uniqueness)
+        db.query.return_value.filter.return_value.first.side_effect = [
+            submission,  # submission lookup
+            None,  # slug uniqueness check
+        ]
 
         db.refresh = MagicMock(side_effect=lambda obj: setattr(obj, "status", MagicMock(value="approved")))
 
@@ -306,6 +311,7 @@ class TestReviewSubmission:
         submission = MagicMock()
         submission.id = uuid.uuid4()
         submission.display_id = "SKL-XYZ789"
+        submission.status = MagicMock(value="gate2_passed")
         db.query.return_value.filter.return_value.first.return_value = submission
 
         db.refresh = MagicMock(side_effect=lambda obj: setattr(obj, "status", MagicMock(value="rejected")))
@@ -336,12 +342,14 @@ class TestReviewSubmission:
 
 
 class TestRunGate2Scan:
-    def test_not_found_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_not_found_raises(self) -> None:
         db = _mock_db_session()
         with pytest.raises(ValueError, match="not found"):
-            run_gate2_scan(db, uuid.uuid4())
+            await run_gate2_scan(db, uuid.uuid4())
 
-    def test_disabled_flag_passes(self) -> None:
+    @pytest.mark.asyncio
+    async def test_disabled_flag_passes(self) -> None:
         db = _mock_db_session()
         db.commit = MagicMock()
         db.add = MagicMock()
@@ -356,9 +364,9 @@ class TestRunGate2Scan:
             None,  # No feature flag → disabled
         ]
 
-        result = run_gate2_scan(db, submission.id)
+        result = await run_gate2_scan(db, submission.id)
         assert result["gate2_status"] == "gate2_passed"
-        assert result["score"] == 85
+        assert result["score"] == 0
 
 
 # --- Access request tests ---
@@ -409,7 +417,7 @@ class TestAccessRequests:
 
         db.refresh = MagicMock(side_effect=lambda obj: setattr(obj, "status", MagicMock(value="approved")))
 
-        result = review_access_request(db, access_req.id, decision="approved")
+        result = review_access_request(db, access_req.id, reviewer_id=uuid.uuid4(), decision="approved")
         assert result["status"] == "approved"
         # Should add SkillDivision
         assert db.add.called

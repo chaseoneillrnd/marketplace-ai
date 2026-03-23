@@ -45,6 +45,7 @@ from skillhub.services.social import (
     fork_skill,
     install_skill,
     unfavorite_skill,
+    unfollow_user,
     uninstall_skill,
 )
 
@@ -80,7 +81,7 @@ def post_install(
     return InstallResponse(**result)
 
 
-@router.delete("/{slug}/install", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{slug}/install", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_install(
     slug: str,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
@@ -112,7 +113,7 @@ def post_favorite(
     return FavoriteResponse(**result)
 
 
-@router.delete("/{slug}/favorite", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{slug}/favorite", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_favorite(
     slug: str,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
@@ -160,6 +161,20 @@ def post_follow(
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err)) from err
     return FollowResponse(**result)
+
+
+@router.delete("/{slug}/follow", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+def delete_follow(
+    slug: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    """Unfollow the author of a skill."""
+    user_id = UUID(current_user["user_id"])
+    try:
+        unfollow_user(db, slug, user_id)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err)) from err
 
 
 # --- Reviews ---
@@ -229,7 +244,7 @@ def patch_review(
     return ReviewResponse(**result)
 
 
-@router.post("/{slug}/reviews/{review_id}/vote", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{slug}/reviews/{review_id}/vote", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def post_review_vote(
     slug: str,
     review_id: UUID,
@@ -322,7 +337,7 @@ def post_reply(
     return ReplyResponse(**result)
 
 
-@router.post("/{slug}/comments/{comment_id}/vote", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{slug}/comments/{comment_id}/vote", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def post_comment_vote(
     slug: str,
     comment_id: UUID,

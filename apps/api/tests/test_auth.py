@@ -10,7 +10,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from skillhub.routers.auth import STUB_USER, router
+from skillhub.routers.auth import STUB_USERS, router
 
 # ---------------------------------------------------------------------------
 # Local test constants & helpers
@@ -43,9 +43,10 @@ def _create_test_app(settings: Any = None) -> FastAPI:
 
 
 def _make_valid_token(**extra: Any) -> str:
-    """Generate a valid JWT with STUB_USER claims."""
+    """Generate a valid JWT with test user claims."""
     payload: dict[str, Any] = {
-        **STUB_USER,
+        **STUB_USERS["test"],
+        "sub": STUB_USERS["test"]["user_id"],
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600,
         **extra,
@@ -118,12 +119,13 @@ class TestLoginToken:
         )
         token = response.json()["access_token"]
         decoded: dict[str, Any] = pyjwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
-        assert decoded["division"] == "Engineering Org"
-        assert decoded["email"] == "test@skillhub.dev"
-        assert decoded["user_id"] == "00000000-0000-0000-0000-000000000001"
+        assert decoded["division"] == "engineering-org"
+        assert decoded["email"] == "test@acme.com"
+        assert decoded["user_id"] == STUB_USERS["test"]["user_id"]
         assert decoded["username"] == "test"
         assert decoded["is_platform_team"] is False
         assert decoded["is_security_team"] is False
+        assert decoded["sub"] == STUB_USERS["test"]["user_id"]
 
 
 # ---------------------------------------------------------------------------
@@ -142,8 +144,8 @@ class TestGetMe:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["division"] == "Engineering Org"
-        assert data["email"] == "test@skillhub.dev"
+        assert data["division"] == "engineering-org"
+        assert data["email"] == "test@acme.com"
 
     def test_without_token_returns_401(self, client: TestClient) -> None:
         response = client.get("/auth/me")
