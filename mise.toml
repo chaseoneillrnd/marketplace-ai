@@ -643,6 +643,20 @@ else
 fi
 """
 
+# ─── Worker Tasks ────────────────────────────────────────────────────────────
+
+[tasks."worker:start"]
+description = "Start ARQ worker"
+run = "cd apps/api && python -m arq skillhub.worker.WorkerSettings"
+
+[tasks."db:aggregate"]
+description = "Manually run daily metrics aggregation"
+run = "cd apps/api && python -c \"import asyncio; from skillhub.worker import aggregate_daily_metrics; print(asyncio.run(aggregate_daily_metrics({})))\""
+
+[tasks."export:clean"]
+description = "Clean expired export files"
+run = "cd apps/api && python -c \"import asyncio; from skillhub.worker import clean_expired_exports; print(asyncio.run(clean_expired_exports({})))\""
+
 # ─── Security Tasks ──────────────────────────────────────────────────────────
 
 [tasks."security:scan"]

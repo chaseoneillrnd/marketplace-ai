@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from skillhub_db.base import Base, TimestampMixin, UUIDMixin
@@ -26,6 +27,7 @@ class User(UUIDMixin, TimestampMixin, Base):
     oauth_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_platform_team: Mapped[bool] = mapped_column(default=False)
     is_security_team: Mapped[bool] = mapped_column(default=False)
+    admin_scopes: Mapped[list] = mapped_column(JSON, default=list)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships

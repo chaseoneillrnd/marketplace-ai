@@ -1,5 +1,6 @@
 """SkillHub database models."""
 
+from skillhub_db.models.analytics import DailyMetrics, ExportJob
 from skillhub_db.models.audit import AuditLog
 from skillhub_db.models.division import Division
 from skillhub_db.models.flags import FeatureFlag
@@ -31,6 +32,8 @@ from skillhub_db.models.submission import (
 from skillhub_db.models.user import User
 
 __all__ = [
+    "DailyMetrics",
+    "ExportJob",
     "AuditLog",
     "Category",
     "Comment",

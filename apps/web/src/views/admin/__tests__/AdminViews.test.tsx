@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -9,6 +9,8 @@ import { AdminFeedbackView } from '../AdminFeedbackView';
 import { AdminSkillsView } from '../AdminSkillsView';
 import { AdminRoadmapView } from '../AdminRoadmapView';
 import { AdminExportView } from '../AdminExportView';
+
+vi.mock('recharts', async () => await import('../../../__mocks__/recharts'));
 
 function wrapper({ children }: { children: ReactNode }) {
   return (
@@ -24,9 +26,16 @@ describe('AdminDashboardView', () => {
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
   });
 
-  it('renders Coming soon text', () => {
+  it('renders stat cards', () => {
     render(<AdminDashboardView />, { wrapper });
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-cards-grid')).toBeInTheDocument();
+    const cards = screen.getAllByTestId('stat-card');
+    expect(cards.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('renders charts area', () => {
+    render(<AdminDashboardView />, { wrapper });
+    expect(screen.getByTestId('charts-area')).toBeInTheDocument();
   });
 });
 
