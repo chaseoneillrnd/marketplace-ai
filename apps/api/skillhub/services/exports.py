@@ -48,7 +48,7 @@ def request_export(
     db.add(job)
     db.commit()
     db.refresh(job)
-    return {"id": str(job.id), "status": job.status, "scope": scope, "format": format}
+    return {"id": str(job.id), "status": "pending", "scope": scope, "format": format}
 
 
 def get_export_status(db: Session, job_id: uuid.UUID) -> dict[str, Any] | None:
@@ -56,13 +56,20 @@ def get_export_status(db: Session, job_id: uuid.UUID) -> dict[str, Any] | None:
     job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
     if not job:
         return None
+    # Map internal status names to the frontend contract.
+    # DB stores "queued" → client sees "pending"; "done" → "complete".
+    _status_map = {"queued": "pending", "processing": "processing", "done": "complete", "failed": "failed"}
+    client_status = _status_map.get(job.status, job.status)
+
     return {
         "id": str(job.id),
-        "status": job.status,
+        "status": client_status,
         "scope": job.scope,
         "format": job.format,
         "row_count": job.row_count,
-        "file_path": job.file_path,
+        # Expose as download_url to match frontend ExportStatus interface.
+        # file_path is an internal filesystem path; callers should not depend on it.
+        "download_url": job.file_path,
         "error": job.error,
         "created_at": job.created_at,
         "completed_at": job.completed_at,

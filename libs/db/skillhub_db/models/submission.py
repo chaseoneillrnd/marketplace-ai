@@ -62,6 +62,13 @@ class Submission(UUIDMixin, TimestampMixin, Base):
         Enum(SubmissionStatus, native_enum=False, length=30),
         default=SubmissionStatus.SUBMITTED,
     )
+    gate3_reviewer_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    gate3_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    gate3_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"<Submission {self.display_id}>"

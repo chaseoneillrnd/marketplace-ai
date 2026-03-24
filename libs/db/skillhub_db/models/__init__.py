@@ -3,6 +3,7 @@
 from skillhub_db.models.analytics import DailyMetrics, ExportJob
 from skillhub_db.models.audit import AuditLog
 from skillhub_db.models.division import Division
+from skillhub_db.models.feedback import PlatformUpdate, SkillFeedback
 from skillhub_db.models.flags import FeatureFlag
 from skillhub_db.models.oauth_session import OAuthSession
 from skillhub_db.models.skill import (
@@ -45,10 +46,12 @@ __all__ = [
     "Follow",
     "Fork",
     "Install",
+    "PlatformUpdate",
     "OAuthSession",
     "Reply",
     "Review",
     "ReviewVote",
+    "SkillFeedback",
     "Skill",
     "SkillDivision",
     "SkillTag",

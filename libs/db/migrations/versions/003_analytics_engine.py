@@ -23,7 +23,7 @@ def upgrade() -> None:
         sa.Column(
             "admin_scopes",
             postgresql.JSON(astext_type=sa.Text()),
-            server_default="'[]'::json",
+            server_default=sa.text("'[]'::json"),
             nullable=False,
         ),
     )

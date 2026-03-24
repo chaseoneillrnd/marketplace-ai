@@ -2418,3 +2418,526 @@ SEED_FAVORITES = [
     {"skill_slug": "email-draft-assistant", "user_index": 2},
     {"skill_slug": "secrets-scanner", "user_index": 6},
 ]
+
+# ---------------------------------------------------------------------------
+# Feedback — realistic skill_feedback rows across all categories
+# Each dict has: user_index, skill_index (into ALL_SKILLS or None),
+# category, body, sentiment, upvotes, status, allow_contact, days_ago
+# ---------------------------------------------------------------------------
+
+SEED_FEEDBACK = [
+    # ── Feature Requests ──
+    {
+        "user_index": 1,
+        "skill_index": None,
+        "category": "feature_request",
+        "body": "It would be great to have skill dependency resolution so complex workflows can declare prerequisites. Right now I have to manually install three skills before the one I actually need works.",
+        "sentiment": "neutral",
+        "upvotes": 22,
+        "status": "planned",
+        "allow_contact": True,
+        "days_ago": 12,
+    },
+    {
+        "user_index": 4,
+        "skill_index": None,
+        "category": "feature_request",
+        "body": "Support for skill templates would save us a ton of time. Every new skill we build starts with the same boilerplate frontmatter and trigger phrases.",
+        "sentiment": "neutral",
+        "upvotes": 15,
+        "status": "triaged",
+        "allow_contact": True,
+        "days_ago": 8,
+    },
+    {
+        "user_index": 2,
+        "skill_index": None,
+        "category": "feature_request",
+        "body": "Dark mode for the MCP tools UI would be really helpful. I spend most of my day in terminal and the bright white page is jarring.",
+        "sentiment": "neutral",
+        "upvotes": 7,
+        "status": "open",
+        "allow_contact": False,
+        "days_ago": 3,
+    },
+    {
+        "user_index": 10,
+        "skill_index": None,
+        "category": "feature_request",
+        "body": "Bulk install from a collection would be a huge quality-of-life improvement. Our ops team needs the same set of eight skills on every new machine.",
+        "sentiment": "positive",
+        "upvotes": 18,
+        "status": "triaged",
+        "allow_contact": True,
+        "days_ago": 20,
+    },
+    {
+        "user_index": 14,
+        "skill_index": None,
+        "category": "feature_request",
+        "body": "Webhook notifications when new skills are published in my division would help me stay on top of what the team is building.",
+        "sentiment": "neutral",
+        "upvotes": 4,
+        "status": "open",
+        "allow_contact": True,
+        "days_ago": 6,
+    },
+    {
+        "user_index": 8,
+        "skill_index": 46,
+        "category": "feature_request",
+        "body": "The Performance Review Assistant should support 360 review formats. We switched to that model last quarter and the current templates only handle manager-to-report.",
+        "sentiment": "neutral",
+        "upvotes": 3,
+        "status": "open",
+        "allow_contact": True,
+        "days_ago": 2,
+    },
+    # ── Bug Reports ──
+    {
+        "user_index": 0,
+        "skill_index": None,
+        "category": "bug_report",
+        "body": "Search doesn't find skills by tag. I tagged my skill with 'python' and 'etl' but searching for either returns nothing. Searching by name works fine.",
+        "sentiment": "negative",
+        "upvotes": 11,
+        "status": "triaged",
+        "allow_contact": True,
+        "days_ago": 4,
+    },
+    {
+        "user_index": 3,
+        "skill_index": 1,
+        "category": "bug_report",
+        "body": "Install count on CI/CD Pipeline Generator hasn't updated since yesterday even though three people on my team installed it today. Might be a caching issue.",
+        "sentiment": "negative",
+        "upvotes": 2,
+        "status": "open",
+        "allow_contact": False,
+        "days_ago": 1,
+    },
+    {
+        "user_index": 1,
+        "skill_index": None,
+        "category": "bug_report",
+        "body": "When I fork a skill, the trigger phrases from the original don't carry over. I have to re-add them manually which defeats the purpose of forking.",
+        "sentiment": "negative",
+        "upvotes": 8,
+        "status": "open",
+        "allow_contact": True,
+        "days_ago": 9,
+    },
+    {
+        "user_index": 11,
+        "skill_index": 57,
+        "category": "bug_report",
+        "body": "Cost Optimization Advisor crashes when the input CSV has more than 500 rows. Getting a generic 500 error with no useful message in the logs.",
+        "sentiment": "negative",
+        "upvotes": 1,
+        "status": "open",
+        "allow_contact": True,
+        "days_ago": 2,
+    },
+    # ── Praise ──
+    {
+        "user_index": 7,
+        "skill_index": 0,
+        "category": "praise",
+        "body": "The review pipeline is incredibly smooth. I submitted a skill on Monday and had actionable feedback by Wednesday. Best internal tooling experience I've had here.",
+        "sentiment": "positive",
+        "upvotes": 5,
+        "status": "archived",
+        "allow_contact": False,
+        "days_ago": 30,
+    },
+    {
+        "user_index": 16,
+        "skill_index": 38,
+        "category": "praise",
+        "body": "MCP install changed my workflow completely. Being able to install the Email Draft Assistant directly from Claude without leaving my editor is a game changer.",
+        "sentiment": "positive",
+        "upvotes": 14,
+        "status": "archived",
+        "allow_contact": False,
+        "days_ago": 25,
+    },
+    {
+        "user_index": 13,
+        "skill_index": None,
+        "category": "praise",
+        "body": "Division filtering is exactly what we needed. As an exec, I only want to see skills relevant to my org and this makes discovery effortless.",
+        "sentiment": "positive",
+        "upvotes": 3,
+        "status": "open",
+        "allow_contact": False,
+        "days_ago": 18,
+    },
+    {
+        "user_index": 6,
+        "skill_index": 31,
+        "category": "praise",
+        "body": "The Contract Analyzer has saved our legal team roughly four hours per week. The clause extraction is surprisingly accurate.",
+        "sentiment": "positive",
+        "upvotes": 9,
+        "status": "open",
+        "allow_contact": True,
+        "days_ago": 14,
+    },
+    {
+        "user_index": 17,
+        "skill_index": None,
+        "category": "praise",
+        "body": "Just want to say the onboarding experience for new skill authors is really well done. The submission guide walked me through everything.",
+        "sentiment": "positive",
+        "upvotes": 2,
+        "status": "open",
+        "allow_contact": False,
+        "days_ago": 7,
+    },
+    # ── Complaints ──
+    {
+        "user_index": 15,
+        "skill_index": None,
+        "category": "complaint",
+        "body": "Too many steps to submit a skill. I counted seven screens before my skill was even queued for review. Can we streamline this?",
+        "sentiment": "negative",
+        "upvotes": 12,
+        "status": "triaged",
+        "allow_contact": True,
+        "days_ago": 11,
+    },
+    {
+        "user_index": 9,
+        "skill_index": None,
+        "category": "complaint",
+        "body": "There's no way to see what's trending this week. The trending section seems to show the same skills for months. Needs a shorter time window.",
+        "sentiment": "negative",
+        "upvotes": 6,
+        "status": "open",
+        "allow_contact": False,
+        "days_ago": 5,
+    },
+    {
+        "user_index": 12,
+        "skill_index": None,
+        "category": "complaint",
+        "body": "The search results page feels sluggish when there are more than 30 results. Pagination or lazy loading would help a lot.",
+        "sentiment": "negative",
+        "upvotes": 4,
+        "status": "open",
+        "allow_contact": True,
+        "days_ago": 3,
+    },
+]
+
+# ---------------------------------------------------------------------------
+# Daily Metrics — 30 days of realistic analytics data for the dashboard.
+# Composite PK: (metric_date, division_slug). '__all__' = platform-wide.
+# ---------------------------------------------------------------------------
+import random
+from datetime import date, timedelta
+
+
+def _generate_daily_metrics():
+    """Generate 30 days of realistic analytics data with deterministic seed."""
+    random.seed(42)
+    metrics = []
+    today = date.today()
+
+    DIVISION_WEIGHTS = {
+        "engineering-org": 0.40,
+        "product-org": 0.20,
+        "finance-legal": 0.10,
+        "people-hr": 0.08,
+        "operations": 0.07,
+        "executive-office": 0.05,
+        "sales-marketing": 0.06,
+        "customer-success": 0.04,
+    }
+
+    for day_offset in range(30):
+        d = today - timedelta(days=29 - day_offset)
+        # Weekday multiplier (lower on weekends)
+        is_weekend = d.weekday() >= 5
+        base_mult = 0.3 if is_weekend else 1.0
+        # Slight upward trend over the 30-day window
+        trend = 1.0 + (day_offset / 30) * 0.2
+
+        # Platform totals for the day
+        total_installs = max(0, int(random.gauss(25, 8) * base_mult * trend))
+        total_dau = max(10, int(random.gauss(140, 30) * base_mult * trend))
+        total_submissions = max(0, int(random.gauss(3, 1.5) * base_mult))
+        total_reviews = max(0, int(random.gauss(8, 3) * base_mult))
+
+        # Funnel (submissions flow through gates)
+        funnel_sub = total_submissions
+        funnel_g1 = int(funnel_sub * random.uniform(0.75, 0.95))
+        funnel_g2 = int(funnel_g1 * random.uniform(0.70, 0.90))
+        funnel_approved = int(funnel_g2 * random.uniform(0.80, 1.0))
+        funnel_published = funnel_approved
+
+        # Per-division rows
+        for div, weight in DIVISION_WEIGHTS.items():
+            div_installs = max(0, int(total_installs * weight * random.uniform(0.7, 1.3)))
+            div_dau = max(1, int(total_dau * weight * random.uniform(0.7, 1.3)))
+            metrics.append({
+                "metric_date": d.isoformat(),
+                "division_slug": div,
+                "new_installs": div_installs,
+                "active_installs": int(div_installs * random.uniform(3, 8)),
+                "uninstalls": max(0, int(div_installs * random.uniform(0, 0.15))),
+                "dau": div_dau,
+                "new_users": max(0, int(random.gauss(1, 0.8) * weight * base_mult)),
+                "new_submissions": max(0, int(total_submissions * weight * random.uniform(0.5, 1.5))),
+                "published_skills": max(0, int(funnel_published * weight)),
+                "new_reviews": max(0, int(total_reviews * weight * random.uniform(0.5, 1.5))),
+                "funnel_submitted": 0,
+                "funnel_g1_pass": 0,
+                "funnel_g2_pass": 0,
+                "funnel_approved": 0,
+                "funnel_published": 0,
+                "gate3_median_wait": None,
+            })
+
+        # __all__ row (platform totals)
+        metrics.append({
+            "metric_date": d.isoformat(),
+            "division_slug": "__all__",
+            "new_installs": total_installs,
+            "active_installs": int(total_installs * random.uniform(4, 7)),
+            "uninstalls": max(0, int(total_installs * 0.08)),
+            "dau": total_dau,
+            "new_users": max(0, int(random.gauss(3, 1.5) * base_mult)),
+            "new_submissions": total_submissions,
+            "published_skills": funnel_published,
+            "new_reviews": total_reviews,
+            "funnel_submitted": funnel_sub,
+            "funnel_g1_pass": funnel_g1,
+            "funnel_g2_pass": funnel_g2,
+            "funnel_approved": funnel_approved,
+            "funnel_published": funnel_published,
+            "gate3_median_wait": int(random.uniform(3600, 86400)),
+        })
+
+    return metrics
+
+
+SEED_DAILY_METRICS = _generate_daily_metrics()
+
+# ---------------------------------------------------------------------------
+# Platform Updates — roadmap and changelog entries across all statuses.
+# Each dict has: title, body (Markdown), status, author_index (into SEED_USERS),
+# target_quarter, shipped_at_days_ago (or None), sort_order, linked_feedback_ids.
+# ---------------------------------------------------------------------------
+
+SEED_PLATFORM_UPDATES = [
+    # ── Shipped (changelog entries) ──
+    {
+        "title": "Division-Based Access Control",
+        "body": (
+            "Skills are now scoped to organizational divisions, ensuring teams only "
+            "see and install skills relevant to their domain. Admins can assign skills "
+            "to one or more divisions, and the API enforces visibility rules at query time. "
+            "Cross-division sharing is supported via explicit multi-division assignment."
+        ),
+        "status": "shipped",
+        "author_index": 1,
+        "target_quarter": "2026-Q1",
+        "shipped_at_days_ago": 45,
+        "sort_order": 1,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "3-Stage Submission Pipeline",
+        "body": (
+            "New skill submissions now pass through a structured three-gate pipeline: "
+            "**Gate 1** validates metadata and content format, **Gate 2** runs an optional "
+            "LLM-based quality assessment, and **Gate 3** requires human reviewer approval. "
+            "Authors receive status updates at each stage with actionable feedback."
+        ),
+        "status": "shipped",
+        "author_index": 1,
+        "target_quarter": "2026-Q1",
+        "shipped_at_days_ago": 38,
+        "sort_order": 2,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "MCP Server Integration",
+        "body": (
+            "SkillHub now ships a first-party MCP server that exposes skill search, install, "
+            "update, and submission as tool calls. Claude Code users can interact with the "
+            "marketplace directly from their editor without switching context. The server "
+            "supports both stdio and SSE transport modes."
+        ),
+        "status": "shipped",
+        "author_index": 1,
+        "target_quarter": "2026-Q1",
+        "shipped_at_days_ago": 30,
+        "sort_order": 3,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Star Ratings & Reviews",
+        "body": (
+            "Users can now leave 1-5 star ratings with written reviews on any skill they have "
+            "installed. Skill cards display a Bayesian-weighted average rating to prevent "
+            "low-sample-size bias. Helpful/unhelpful voting on reviews surfaces the most "
+            "useful feedback first."
+        ),
+        "status": "shipped",
+        "author_index": 1,
+        "target_quarter": "2026-Q1",
+        "shipped_at_days_ago": 25,
+        "sort_order": 4,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Skill Forking & Attribution",
+        "body": (
+            "Users can fork any published skill to create their own variant while preserving "
+            "a link back to the original. Fork counts are tracked on the parent skill, and "
+            "the fork tree is browsable from the skill detail view. Attribution is automatic "
+            "and immutable."
+        ),
+        "status": "shipped",
+        "author_index": 1,
+        "target_quarter": "2026-Q1",
+        "shipped_at_days_ago": 20,
+        "sort_order": 5,
+        "linked_feedback_ids": [],
+    },
+    # ── In Progress ──
+    {
+        "title": "Admin Dashboard & Analytics",
+        "body": (
+            "Building a comprehensive admin dashboard with real-time metrics on skill adoption, "
+            "submission pipeline throughput, and user engagement. Includes filterable charts "
+            "by division, category, and time range, plus a queue view for pending submissions."
+        ),
+        "status": "in_progress",
+        "author_index": 1,
+        "target_quarter": "2026-Q1",
+        "shipped_at_days_ago": None,
+        "sort_order": 6,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Real-time Notifications",
+        "body": (
+            "Adding WebSocket-based notifications so authors are alerted instantly when their "
+            "skill receives a review, passes a submission gate, or gets flagged. Users will "
+            "also be notified when installed skills publish new versions."
+        ),
+        "status": "in_progress",
+        "author_index": 1,
+        "target_quarter": "2026-Q2",
+        "shipped_at_days_ago": None,
+        "sort_order": 7,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Skill Dependency Resolution",
+        "body": (
+            "Introducing a dependency graph so skills can declare other skills as prerequisites. "
+            "The install flow will automatically resolve and install dependencies in the correct "
+            "order, with conflict detection for incompatible version requirements."
+        ),
+        "status": "in_progress",
+        "author_index": 1,
+        "target_quarter": "2026-Q2",
+        "shipped_at_days_ago": None,
+        "sort_order": 8,
+        "linked_feedback_ids": [],
+    },
+    # ── Planned ──
+    {
+        "title": "Production OAuth/SSO Integration",
+        "body": (
+            "Replacing the development stub auth with a full OAuth 2.0 / OIDC integration "
+            "supporting the corporate SSO provider. Will include automatic division assignment "
+            "from directory groups, token refresh, and session management with configurable TTLs."
+        ),
+        "status": "planned",
+        "author_index": 1,
+        "target_quarter": "2026-Q2",
+        "shipped_at_days_ago": None,
+        "sort_order": 9,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Advanced Search with Semantic Matching",
+        "body": (
+            "Upgrading search from keyword-based to semantic matching powered by embedding "
+            "models. Users will find skills by describing what they need in natural language, "
+            "even when their query doesn't match the skill's exact title or tags."
+        ),
+        "status": "planned",
+        "author_index": 1,
+        "target_quarter": "2026-Q2",
+        "shipped_at_days_ago": None,
+        "sort_order": 10,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Skill Templates & Scaffolding",
+        "body": (
+            "A template system that lets authors bootstrap new skills from curated starter "
+            "templates. Each template will include pre-configured metadata, example content, "
+            "and best-practice patterns for common skill types like code review, documentation, "
+            "and data analysis."
+        ),
+        "status": "planned",
+        "author_index": 1,
+        "target_quarter": "2026-Q3",
+        "shipped_at_days_ago": None,
+        "sort_order": 11,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Skill Usage Analytics for Authors",
+        "body": (
+            "Providing skill authors with a private analytics dashboard showing install trends, "
+            "active usage counts, review sentiment over time, and distribution across "
+            "divisions. Designed to help authors iterate on their skills with real data."
+        ),
+        "status": "planned",
+        "author_index": 1,
+        "target_quarter": "2026-Q3",
+        "shipped_at_days_ago": None,
+        "sort_order": 12,
+        "linked_feedback_ids": [],
+    },
+    # ── Cancelled ──
+    {
+        "title": "Browser Extension for Skill Install",
+        "body": (
+            "Originally planned as a Chrome/Firefox extension for one-click skill installation "
+            "from the web UI. After evaluating user workflows, we determined that the MCP server "
+            "integration provides a superior in-editor experience that better matches how teams "
+            "actually discover and adopt skills. This item has been cancelled in favor of "
+            "continued investment in MCP tooling."
+        ),
+        "status": "cancelled",
+        "author_index": 1,
+        "target_quarter": "2026-Q2",
+        "shipped_at_days_ago": None,
+        "sort_order": 13,
+        "linked_feedback_ids": [],
+    },
+    {
+        "title": "Public API for External Marketplaces",
+        "body": (
+            "Explored exposing a public REST API to allow third-party marketplaces to syndicate "
+            "SkillHub content. After security review, the team concluded that the risk of "
+            "leaking internal skill content outweighs the distribution benefits. Internal-only "
+            "access remains the policy. May revisit if a secure federation protocol emerges."
+        ),
+        "status": "cancelled",
+        "author_index": 1,
+        "target_quarter": "2026-Q3",
+        "shipped_at_days_ago": None,
+        "sort_order": 14,
+        "linked_feedback_ids": [],
+    },
+]

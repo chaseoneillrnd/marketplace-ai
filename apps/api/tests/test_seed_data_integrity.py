@@ -296,3 +296,80 @@ class TestSeedDataReferentialIntegrity:
                 f"Duplicate install: skill='{inst['skill_slug']}' user_index={inst['user_index']}"
             )
             seen.add(key)
+
+
+# ---------------------------------------------------------------------------
+# Admin seed data integrity — feedback, metrics, platform updates
+# ---------------------------------------------------------------------------
+
+from seed_data import SEED_FEEDBACK, SEED_DAILY_METRICS, SEED_PLATFORM_UPDATES
+
+
+class TestAdminSeedDataIntegrity:
+    """Verify admin seed data is present and correctly formatted."""
+
+    def test_feedback_entries_exist(self) -> None:
+        """Seed data includes feedback entries."""
+        assert len(SEED_FEEDBACK) >= 15, (
+            f"Expected >= 15 feedback entries, got {len(SEED_FEEDBACK)}"
+        )
+
+    def test_feedback_categories_diverse(self) -> None:
+        """Feedback covers all 4 categories."""
+        categories = {f["category"] for f in SEED_FEEDBACK}
+        expected = {"feature_request", "bug_report", "praise", "complaint"}
+        assert expected.issubset(categories), (
+            f"Missing categories: {expected - categories}"
+        )
+
+    def test_daily_metrics_exist(self) -> None:
+        """Seed data includes 30 days of daily metrics."""
+        assert len(SEED_DAILY_METRICS) >= 200, (
+            f"Expected >= 200 daily_metrics rows (30 days x ~9 divisions), "
+            f"got {len(SEED_DAILY_METRICS)}"
+        )
+
+    def test_daily_metrics_has_all_sentinel(self) -> None:
+        """daily_metrics includes __all__ platform-wide rows."""
+        all_count = sum(
+            1 for m in SEED_DAILY_METRICS if m.get("division_slug") == "__all__"
+        )
+        assert all_count >= 25, (
+            f"Expected >= 25 __all__ rows (30 days), got {all_count}"
+        )
+
+    def test_platform_updates_exist(self) -> None:
+        """Seed data includes roadmap/changelog entries."""
+        assert len(SEED_PLATFORM_UPDATES) >= 10, (
+            f"Expected >= 10 platform_updates, got {len(SEED_PLATFORM_UPDATES)}"
+        )
+
+    def test_platform_updates_has_shipped(self) -> None:
+        """Some platform updates are shipped (changelog entries)."""
+        shipped = sum(1 for u in SEED_PLATFORM_UPDATES if u["status"] == "shipped")
+        assert shipped >= 3, (
+            f"Expected >= 3 shipped items for changelog, got {shipped}"
+        )
+
+    def test_platform_updates_has_planned(self) -> None:
+        """Some platform updates are planned (roadmap entries)."""
+        planned = sum(1 for u in SEED_PLATFORM_UPDATES if u["status"] == "planned")
+        assert planned >= 2, (
+            f"Expected >= 2 planned items, got {planned}"
+        )
+
+    def test_feedback_references_valid_users(self) -> None:
+        """Feedback user_index values must be valid."""
+        for fb in SEED_FEEDBACK:
+            assert fb["user_index"] < len(SEED_USERS), (
+                f"Feedback has invalid user_index={fb['user_index']}"
+            )
+
+    def test_feedback_has_required_fields(self) -> None:
+        """Each feedback entry must have all required fields."""
+        required = {"user_index", "category", "body", "sentiment", "days_ago"}
+        for i, fb in enumerate(SEED_FEEDBACK):
+            missing = required - set(fb.keys())
+            assert not missing, (
+                f"Feedback entry {i} missing fields: {missing}"
+            )

@@ -30,7 +30,10 @@ from seed_data import (
     DIVISIONS,
     FEATURE_FLAGS,
     SEED_FAVORITES,
+    SEED_DAILY_METRICS,
+    SEED_FEEDBACK,
     SEED_INSTALLS,
+    SEED_PLATFORM_UPDATES,
     SEED_REVIEWS,
     SEED_USERS,
 )
@@ -92,7 +95,7 @@ def seed() -> None:
     """Run all seeds idempotently with progress output."""
     _header("SkillHub Database Seed")
     print(f"  {DIM}Timestamp: {datetime.now(timezone.utc).isoformat()}{RESET}")
-    print(f"  {DIM}Data: {len(SEED_USERS)} users, {len(ALL_SKILLS)} skills, {len(SEED_REVIEWS)} reviews{RESET}")
+    print(f"  {DIM}Data: {len(SEED_USERS)} users, {len(ALL_SKILLS)} skills, {len(SEED_REVIEWS)} reviews, {len(SEED_FEEDBACK)} feedback{RESET}")
 
     t_start = time.monotonic()
     errors: list[str] = []
@@ -107,6 +110,9 @@ def seed() -> None:
         n_rev_new, n_rev_skip, rev_errors = _seed_reviews(db)
         n_inst_new, n_inst_skip = _seed_installs(db)
         n_fav_new, n_fav_skip = _seed_favorites(db)
+        n_fb_new, n_fb_skip = _seed_feedback(db)
+        n_met_new, n_met_skip = _seed_daily_metrics(db)
+        n_pu_new, n_pu_skip = _seed_platform_updates(db)
 
         errors.extend(skill_errors)
         errors.extend(rev_errors)
@@ -130,6 +136,9 @@ def seed() -> None:
             ("Reviews", n_rev_new, n_rev_skip),
             ("Installs", n_inst_new, n_inst_skip),
             ("Favorites", n_fav_new, n_fav_skip),
+            ("Feedback", n_fb_new, n_fb_skip),
+            ("Daily Metrics", n_met_new, n_met_skip),
+            ("Platform Updates", n_pu_new, n_pu_skip),
         ]
         print(f"  {'Entity':<16} {'Created':>8} {'Skipped':>8}")
         print(f"  {DIM}{'─' * 34}{RESET}")
@@ -648,6 +657,197 @@ def _seed_favorites(db) -> tuple[int, int]:  # noqa: ANN001
         created += 1
 
     _ok(f"{created} favorites created, {skipped} skipped")
+    return created, skipped
+
+
+# ---------------------------------------------------------------------------
+# Feedback seeds
+# ---------------------------------------------------------------------------
+
+
+def _seed_feedback(db) -> tuple[int, int]:  # noqa: ANN001
+    """Seed skill_feedback rows. Links to skills by index and users by index."""
+    _section(f"Feedback ({len(SEED_FEEDBACK)})")
+    now = datetime.now(timezone.utc)
+    created = 0
+    skipped = 0
+
+    for fb in SEED_FEEDBACK:
+        user_id = SEED_USERS[fb["user_index"]]["id"]
+        user_name = SEED_USERS[fb["user_index"]]["name"]
+
+        # Resolve skill_id from index (None means platform-level feedback)
+        skill_id = None
+        skill_label = "platform"
+        if fb["skill_index"] is not None:
+            skill_slug = ALL_SKILLS[fb["skill_index"]]["slug"]
+            row = db.execute(
+                text("SELECT id FROM skills WHERE slug = :slug"),
+                {"slug": skill_slug},
+            ).fetchone()
+            if not row:
+                _warn(f"Feedback skill '{skill_slug}': not found, skipping")
+                continue
+            skill_id = str(row[0])
+            skill_label = skill_slug
+
+        # Idempotency: skip if same user+category+body prefix already exists
+        body_prefix = fb["body"][:80]
+        existing = db.execute(
+            text(
+                "SELECT 1 FROM skill_feedback "
+                "WHERE user_id = :uid AND category = :cat AND body LIKE :prefix"
+            ),
+            {"uid": user_id, "cat": fb["category"], "prefix": body_prefix + "%"},
+        ).fetchone()
+        if existing:
+            skipped += 1
+            continue
+
+        feedback_date = now - timedelta(days=fb.get("days_ago", 7))
+        db.execute(
+            text(
+                "INSERT INTO skill_feedback "
+                "(id, user_id, skill_id, category, body, sentiment, upvotes, "
+                "status, allow_contact, created_at) "
+                "VALUES (:id, :uid, :sid, :category, :body, :sentiment, "
+                ":upvotes, :status, :allow_contact, :created_at)"
+            ),
+            {
+                "id": str(uuid.uuid4()),
+                "uid": user_id,
+                "sid": skill_id,
+                "category": fb["category"],
+                "body": fb["body"],
+                "sentiment": fb["sentiment"],
+                "upvotes": fb["upvotes"],
+                "status": fb["status"],
+                "allow_contact": fb["allow_contact"],
+                "created_at": feedback_date,
+            },
+        )
+
+        cat_color = {
+            "feature_request": CYAN,
+            "bug_report": RED,
+            "praise": GREEN,
+            "complaint": YELLOW,
+        }.get(fb["category"], DIM)
+        _ok(
+            f"{cat_color}{fb['category']}{RESET} "
+            f"{DIM}→ {skill_label} ← {user_name}{RESET}"
+        )
+        created += 1
+
+    _ok(f"{created} feedback created, {skipped} skipped")
+    return created, skipped
+
+
+# ---------------------------------------------------------------------------
+# Daily Metrics seeds
+# ---------------------------------------------------------------------------
+
+
+def _seed_daily_metrics(db) -> tuple[int, int]:  # noqa: ANN001
+    """Seed daily_metrics rows using ON CONFLICT DO NOTHING on composite PK."""
+    _section(f"Daily Metrics ({len(SEED_DAILY_METRICS)} rows)")
+    created = 0
+    skipped = 0
+
+    for m in SEED_DAILY_METRICS:
+        result = db.execute(
+            text(
+                "INSERT INTO daily_metrics ("
+                "metric_date, division_slug, new_installs, active_installs, "
+                "uninstalls, dau, new_users, new_submissions, published_skills, "
+                "new_reviews, funnel_submitted, funnel_g1_pass, funnel_g2_pass, "
+                "funnel_approved, funnel_published, gate3_median_wait, computed_at"
+                ") VALUES ("
+                ":metric_date, :division_slug, :new_installs, :active_installs, "
+                ":uninstalls, :dau, :new_users, :new_submissions, :published_skills, "
+                ":new_reviews, :funnel_submitted, :funnel_g1_pass, :funnel_g2_pass, "
+                ":funnel_approved, :funnel_published, :gate3_median_wait, NOW()"
+                ") ON CONFLICT (metric_date, division_slug) DO NOTHING"
+            ),
+            m,
+        )
+        if result.rowcount > 0:
+            created += 1
+        else:
+            skipped += 1
+
+    _ok(f"{created} metric rows created, {skipped} skipped")
+    return created, skipped
+
+
+# ---------------------------------------------------------------------------
+# Platform Update seeds
+# ---------------------------------------------------------------------------
+
+
+def _seed_platform_updates(db) -> tuple[int, int]:  # noqa: ANN001
+    """Seed platform_updates rows (roadmap + changelog). Idempotent by title."""
+    _section(f"Platform Updates ({len(SEED_PLATFORM_UPDATES)})")
+    now = datetime.now(timezone.utc)
+    created = 0
+    skipped = 0
+
+    status_colors = {
+        "shipped": GREEN,
+        "in_progress": CYAN,
+        "planned": BLUE,
+        "cancelled": RED,
+    }
+
+    for pu in SEED_PLATFORM_UPDATES:
+        # Idempotency: skip if title already exists
+        existing = db.execute(
+            text("SELECT 1 FROM platform_updates WHERE title = :title"),
+            {"title": pu["title"]},
+        ).fetchone()
+        if existing:
+            skipped += 1
+            _skip(f"{pu['title']} (exists)")
+            continue
+
+        author_id = SEED_USERS[pu["author_index"]]["id"]
+
+        shipped_at = None
+        if pu["shipped_at_days_ago"] is not None:
+            shipped_at = now - timedelta(days=pu["shipped_at_days_ago"])
+
+        created_at = now - timedelta(days=(pu.get("shipped_at_days_ago") or 60) + 10)
+        updated_at = shipped_at if shipped_at else now - timedelta(days=5)
+
+        db.execute(
+            text(
+                "INSERT INTO platform_updates "
+                "(id, title, body, status, author_id, target_quarter, "
+                "linked_feedback_ids, shipped_at, sort_order, created_at, updated_at) "
+                "VALUES (:id, :title, :body, :status, :author_id, :target_quarter, "
+                ":linked_feedback_ids, :shipped_at, :sort_order, :created_at, :updated_at)"
+            ),
+            {
+                "id": str(uuid.uuid4()),
+                "title": pu["title"],
+                "body": pu["body"],
+                "status": pu["status"],
+                "author_id": author_id,
+                "target_quarter": pu["target_quarter"],
+                "linked_feedback_ids": "[]",
+                "shipped_at": shipped_at,
+                "sort_order": pu["sort_order"],
+                "created_at": created_at,
+                "updated_at": updated_at,
+            },
+        )
+
+        color = status_colors.get(pu["status"], DIM)
+        quarter = pu["target_quarter"] or "---"
+        _ok(f"{color}{pu['status']:<12}{RESET} {pu['title']} {DIM}({quarter}){RESET}")
+        created += 1
+
+    _ok(f"{created} platform updates created, {skipped} skipped")
     return created, skipped
 
 
