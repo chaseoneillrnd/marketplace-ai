@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import random
 import re
@@ -26,6 +27,7 @@ from skillhub_db.models.submission import (
     GateResult,
     Submission,
     SubmissionGateResult,
+    SubmissionStateTransition,
     SubmissionStatus,
 )
 from sqlalchemy.orm import Session
@@ -757,3 +759,145 @@ def review_access_request(
             "status": access_req.status.value,
             "decision": decision,
         }
+
+
+# ---------------------------------------------------------------------------
+# HITL Revision Tracking
+# ---------------------------------------------------------------------------
+
+
+def get_submission_by_display_id(db: Session, display_id: str) -> Submission | None:
+    """Look up a submission by its human-readable display_id."""
+    return db.query(Submission).filter(Submission.display_id == display_id).first()
+
+
+def compute_content_hash(content: str) -> str:
+    """Return a truncated SHA-256 hex digest of *content*."""
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+
+def record_state_transition(
+    db: Session,
+    submission_id: UUID,
+    from_status: str,
+    to_status: str,
+    actor_id: UUID,
+    notes: str | None = None,
+    diff_snapshot: dict[str, Any] | None = None,
+    change_flags_resolved: dict[str, Any] | None = None,
+) -> SubmissionStateTransition:
+    """Create a SubmissionStateTransition row (caller is responsible for commit)."""
+    transition = SubmissionStateTransition(
+        id=uuid.uuid4(),
+        submission_id=submission_id,
+        from_status=from_status,
+        to_status=to_status,
+        actor_id=actor_id,
+        notes=notes,
+        diff_snapshot=diff_snapshot,
+        change_flags_resolved=change_flags_resolved,
+    )
+    db.add(transition)
+    return transition
+
+
+def resubmit_submission(
+    db: Session,
+    display_id: str,
+    user_id: UUID,
+    new_content: str,
+    new_name: str | None = None,
+    new_short_desc: str | None = None,
+) -> dict[str, Any]:
+    """Resubmit a submission after changes were requested.
+
+    Only the original submitter may resubmit, and the submission must be in
+    CHANGES_REQUESTED or GATE3_CHANGES_REQUESTED status.
+
+    Returns a dict with updated submission fields.
+    """
+    submission = get_submission_by_display_id(db, display_id)
+    if not submission:
+        raise ValueError(f"Submission '{display_id}' not found")
+
+    allowed_statuses = {SubmissionStatus.CHANGES_REQUESTED, SubmissionStatus.GATE3_CHANGES_REQUESTED}
+    if submission.status not in allowed_statuses:
+        raise ValueError(
+            f"Submission is not in a resubmittable state: {submission.status.value}"
+        )
+
+    if submission.submitted_by != user_id:
+        raise PermissionError("Only the original submitter can resubmit")
+
+    new_hash = compute_content_hash(new_content)
+    old_hash = submission.content_hash or compute_content_hash(submission.content)
+    old_status = submission.status.value
+
+    # Record the state transition
+    record_state_transition(
+        db,
+        submission_id=submission.id,
+        from_status=old_status,
+        to_status=SubmissionStatus.SUBMITTED.value,
+        actor_id=user_id,
+        notes="Resubmission with updated content",
+        diff_snapshot={"old_content_hash": old_hash, "new_content_hash": new_hash},
+    )
+
+    # Update submission fields
+    submission.content = new_content
+    submission.content_hash = new_hash
+    submission.revision_number += 1
+    submission.status = SubmissionStatus.SUBMITTED
+    if new_name is not None:
+        submission.name = new_name
+    if new_short_desc is not None:
+        submission.short_desc = new_short_desc
+
+    _write_audit(
+        db,
+        event_type="submission.resubmitted",
+        actor_id=user_id,
+        target_type="submission",
+        target_id=str(submission.id),
+        metadata={"display_id": display_id, "revision_number": submission.revision_number},
+    )
+
+    db.commit()
+    db.refresh(submission)
+
+    return {
+        "id": submission.id,
+        "display_id": submission.display_id,
+        "name": submission.name,
+        "short_desc": submission.short_desc,
+        "status": submission.status.value,
+        "revision_number": submission.revision_number,
+        "content_hash": submission.content_hash,
+    }
+
+
+def get_audit_trail(db: Session, display_id: str) -> list[dict[str, Any]]:
+    """Return the state-transition audit trail for a submission."""
+    submission = get_submission_by_display_id(db, display_id)
+    if not submission:
+        raise ValueError(f"Submission '{display_id}' not found")
+
+    transitions = (
+        db.query(SubmissionStateTransition)
+        .filter(SubmissionStateTransition.submission_id == submission.id)
+        .order_by(SubmissionStateTransition.created_at)
+        .all()
+    )
+
+    return [
+        {
+            "id": t.id,
+            "from_status": t.from_status,
+            "to_status": t.to_status,
+            "actor_id": t.actor_id,
+            "notes": t.notes,
+            "created_at": t.created_at,
+        }
+        for t in transitions
+    ]

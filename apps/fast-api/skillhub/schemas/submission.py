@@ -136,6 +136,33 @@ class AccessRequestsResponse(BaseModel):
     has_more: bool
 
 
+class ResubmitRequest(BaseModel):
+    """Request body for resubmitting a submission after changes requested."""
+
+    content: str = Field(min_length=1)
+    name: str | None = None
+    short_desc: str | None = None
+
+
+class AuditTrailEntry(BaseModel):
+    """A single state-transition audit trail entry."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    from_status: str
+    to_status: str
+    actor_id: UUID
+    notes: str | None
+    created_at: datetime
+
+
+class AuditTrailResponse(BaseModel):
+    """Response containing the full audit trail for a submission."""
+
+    entries: list[AuditTrailEntry]
+
+
 class JudgeVerdict(BaseModel):
     """LLM judge verdict."""
 

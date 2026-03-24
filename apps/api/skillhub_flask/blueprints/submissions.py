@@ -21,6 +21,8 @@ from skillhub.schemas.submission import (
     AccessRequestsResponse,
     AdminSubmissionsResponse,
     AdminSubmissionSummary,
+    AuditTrailResponse,
+    ResubmitRequest,
     ReviewDecisionRequest,
     SubmissionCreateRequest,
     SubmissionCreateResponse,
@@ -29,9 +31,12 @@ from skillhub.schemas.submission import (
 from skillhub.services.submissions import (
     create_access_request,
     create_submission,
+    get_audit_trail,
     get_submission,
+    get_submission_by_display_id,
     list_access_requests,
     list_admin_submissions,
+    resubmit_submission,
     review_access_request,
     review_submission,
 )
@@ -211,6 +216,68 @@ def review_submission_endpoint(submission_id: str) -> tuple:
         return jsonify({"detail": str(e)}), 404
 
     return jsonify(result), 200
+
+
+# ---------------------------------------------------------------------------
+# HITL Revision Tracking endpoints
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/api/v1/submissions/<display_id>/resubmit", methods=["POST"])
+def resubmit(display_id: str) -> tuple:
+    """Resubmit a submission after changes were requested."""
+    db = get_db()
+    current_user: dict[str, Any] = g.current_user
+    user_id = uuid.UUID(current_user["user_id"])
+
+    body = ResubmitRequest(**request.get_json(force=True))
+
+    try:
+        result = resubmit_submission(
+            db,
+            display_id=display_id,
+            user_id=user_id,
+            new_content=body.content,
+            new_name=body.name,
+            new_short_desc=body.short_desc,
+        )
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg:
+            return jsonify({"detail": error_msg}), 404
+        return jsonify({"detail": error_msg}), 400
+    except PermissionError as e:
+        return jsonify({"detail": str(e)}), 403
+
+    return jsonify(result), 200
+
+
+@bp.route("/api/v1/submissions/<display_id>/audit-log", methods=["GET"])
+def get_audit_log(display_id: str) -> tuple:
+    """Get the state-transition audit trail for a submission.
+
+    Accessible by the submission owner or platform team members.
+    """
+    db = get_db()
+    current_user: dict[str, Any] = g.current_user
+    user_id = uuid.UUID(current_user["user_id"])
+    is_platform_team = current_user.get("is_platform_team", False)
+
+    # Check submission exists and user has access
+    submission = get_submission_by_display_id(db, display_id)
+    if not submission:
+        return jsonify({"detail": f"Submission '{display_id}' not found"}), 404
+
+    if not is_platform_team and submission.submitted_by != user_id:
+        return jsonify({"detail": "Not authorized to view this audit log"}), 403
+
+    try:
+        entries = get_audit_trail(db, display_id)
+    except ValueError as e:
+        return jsonify({"detail": str(e)}), 404
+
+    response = AuditTrailResponse(entries=entries)
+    return jsonify(response.model_dump(mode="json")), 200
 
 
 # ---------------------------------------------------------------------------
