@@ -53,7 +53,6 @@ services:
     volumes:
       - ./apps/api:/app/apps/api
       - ./libs:/app/libs
-      - export-staging:/tmp/skillhub-exports
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,27 +60,6 @@ services:
         condition: service_healthy
       jaeger:
         condition: service_started
-
-  arq-worker:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    command: python -m skillhub.worker
-    environment:
-      DATABASE_URL: postgresql://skillhub:skillhub@postgres:5432/skillhub
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
-      EXPORT_DIR: /tmp/skillhub-exports
-    volumes:
-      - ./apps/api:/app/apps/api
-      - ./libs:/app/libs
-      - export-staging:/tmp/skillhub-exports
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
 
   mcp-server:
     build:
@@ -115,4 +93,3 @@ services:
 
 volumes:
   pgdata:
-  export-staging:

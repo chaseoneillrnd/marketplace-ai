@@ -37,3 +37,19 @@ docker-compose.override.yml
 
 # Worktrees
 .worktrees/
+
+# Runtime PID file written by mise dev scripts — never commit
+.dev-pids
+
+# Playwright MCP session data (browser state, auth storage)
+.playwright-mcp/
+
+# Superpowers skill trace artefacts (repomix snapshots, console logs)
+.claude/skills/trace/*.json
+.claude/skills/trace/*.log
+
+# Coverage artefacts at any subdirectory depth (supplements root-level rules above)
+**/htmlcov/
+**/.coverage
+**/coverage.xml
+**/lcov.info
