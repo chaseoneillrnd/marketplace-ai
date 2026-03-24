@@ -75,6 +75,7 @@ class PlatformUpdateResponse(BaseModel):
     target_quarter: str | None = None
     linked_feedback_ids: list = []
     shipped_at: datetime | None = None
+    version_tag: str | None = None
     sort_order: int
     created_at: datetime
     updated_at: datetime
