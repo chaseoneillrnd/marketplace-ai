@@ -128,7 +128,7 @@ env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."db:up"]
 description = "Start database containers"
-run = "docker compose up -d postgres redis"
+run = "docker compose up -d postgres"
 
 [tasks."db:down"]
 description = "Stop database containers"
@@ -345,7 +345,7 @@ pip install -e apps/api[dev] -e apps/mcp-server[dev] -e libs/db[dev] -e libs/pyt
 echo ""
 
 echo "--- Starting Docker containers ---"
-docker compose up -d postgres redis
+docker compose up -d postgres
 echo ""
 
 echo "--- Waiting for PostgreSQL to be healthy ---"

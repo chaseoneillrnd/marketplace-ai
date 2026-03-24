@@ -15,16 +15,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:
@@ -42,7 +32,6 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://skillhub:skillhub@postgres:5432/skillhub
-      REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
       STUB_AUTH_ENABLED: ${STUB_AUTH_ENABLED:-true}
       LLM_ROUTER_URL: ${LLM_ROUTER_URL:-}
@@ -55,8 +44,6 @@ services:
       - ./libs:/app/libs
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       jaeger:
         condition: service_started

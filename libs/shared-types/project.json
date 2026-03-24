@@ -1,0 +1,8 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "shared-types",
+  "sourceRoot": "libs/shared-types/src",
+  "projectType": "library",
+  "tags": ["scope:lib", "type:shared"],
+  "implicitDependencies": []
+}
