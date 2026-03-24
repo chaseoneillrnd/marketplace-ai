@@ -278,6 +278,16 @@ run = "echo 'Docs validation: checking Mermaid diagrams...' && ls docs/ai-agent/
 description = "Print docs map"
 run = "find docs/ -name '*.md' -type f | sort"
 
+[tasks."dev:docs"]
+description = "Start VitePress docs dev server"
+run = "npx vitepress dev src --port 5174"
+dir = "apps/docs"
+
+[tasks."build:docs"]
+description = "Build VitePress docs site"
+run = "npx vitepress build src"
+dir = "apps/docs"
+
 # ─── Repo Master ───────────────────────────────────────────────────────────────
 
 [tasks."repo:bootstrap"]
