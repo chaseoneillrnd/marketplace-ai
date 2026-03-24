@@ -51,6 +51,31 @@ bp = Blueprint("submissions", __name__)
 # ---------------------------------------------------------------------------
 
 
+@bp.route("/api/v1/submissions/preview-scan", methods=["POST"])
+def preview_scan() -> tuple:
+    """LLM Judge live assist -- returns suggestions without creating a submission."""
+    body = request.get_json(force=True) or {}
+    content = body.get("content", "")
+    name = body.get("name", "")
+    category = body.get("category", "")
+
+    # For the PoC, return mock suggestions (LLM integration is Phase 2)
+    suggestions: dict[str, Any] = {
+        "category_recommendation": category or "engineering",
+        "quality_score": min(100, len(content) // 10),
+        "tags_suggested": ["productivity", "automation"],
+        "issues": [],
+    }
+    if len(content) < 100:
+        suggestions["issues"].append(
+            "Content is very short -- consider adding more detail"
+        )
+    if not name:
+        suggestions["issues"].append("Name is required")
+
+    return jsonify(suggestions), 200
+
+
 @bp.route("/api/v1/submissions", methods=["POST"])
 def create_new_submission() -> tuple:
     """Create a new skill submission and run Gate 1 validation."""

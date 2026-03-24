@@ -11,6 +11,7 @@ import { BrowseView } from './views/BrowseView';
 import { SearchView } from './views/SearchView';
 import { FilteredView } from './views/FilteredView';
 import { SkillDetailView } from './views/SkillDetailView';
+import { SubmitSkillPage } from './views/submit/SubmitSkillPage';
 import { RequireAdmin } from './components/admin/RequireAdmin';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLoadingSkeleton } from './components/admin/AdminLoadingSkeleton';
@@ -92,6 +93,7 @@ function AppShell() {
           <Route path="/search" element={<SearchView />} />
           <Route path="/filtered" element={<FilteredView />} />
           <Route path="/skills/:slug" element={<SkillDetailView />} />
+          <Route path="/submit" element={<SubmitSkillPage />} />
 
           {/* Admin routes — gated by RequireAdmin */}
           <Route element={<RequireAdmin />}>
