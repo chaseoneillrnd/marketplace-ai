@@ -23,4 +23,18 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+  webServer: [
+    {
+      command: 'cd ../.. && PYTHONPATH="apps/api:apps/fast-api:libs/db:libs/python-common" SKILLHUB_STUB_AUTH_ENABLED=true flask --app skillhub_flask.app:create_app run --port 8000',
+      port: 8000,
+      reuseExistingServer: true,
+      timeout: 30_000,
+    },
+    {
+      command: 'npm run dev',
+      port: 5173,
+      reuseExistingServer: true,
+      timeout: 30_000,
+    },
+  ],
 });
