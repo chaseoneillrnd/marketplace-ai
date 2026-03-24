@@ -18,8 +18,8 @@ run = "npx nx run web:dev"
 
 [tasks."dev:api"]
 description = "Start API server"
-run = "uvicorn skillhub.main:app --reload --host 0.0.0.0 --port 8000 --app-dir apps/api"
-env = { PYTHONPATH = "libs/db:libs/python-common" }
+run = "flask --app skillhub_flask.app:create_app run --reload --host 0.0.0.0 --port 8000"
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common", FLASK_DEBUG = "1" }
 
 [tasks."dev:mcp"]
 description = "Start MCP server"
@@ -58,12 +58,12 @@ run = "npx vitest run --coverage --project web"
 [tasks."test:api"]
 description = "Run API tests"
 run = "python -m pytest apps/api/tests/ -v"
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 [tasks."test:api:coverage"]
 description = "Run API tests with coverage"
 run = "python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80"
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 [tasks."test:mcp"]
 description = "Run MCP server tests"
@@ -122,7 +122,7 @@ run = "npx tsc --noEmit -p apps/web/tsconfig.json"
 [tasks."typecheck:api"]
 description = "Python type check"
 run = "mypy apps/api/skillhub/ --strict"
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 # ─── Database ──────────────────────────────────────────────────────────────────
 
@@ -187,8 +187,8 @@ run = "docker compose exec postgres pg_dump -U skillhub -d skillhub --schema-onl
 
 [tasks."gen:openapi"]
 description = "Generate OpenAPI spec"
-run = "python -c \"from skillhub.main import create_app; import json; app=create_app(); print(json.dumps(app.openapi(), indent=2))\" > specs/openapi.json"
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+run = "python -c \"from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))\" > specs/openapi.json"
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 [tasks."gen:types"]
 description = "Generate TypeScript types from OpenAPI"
@@ -243,7 +243,7 @@ echo "=== TypeScript Check ==="
 npx tsc --noEmit -p apps/web/tsconfig.json
 echo "=== Quality gate complete ==="
 """
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 [tasks."quality-gate:api"]
 description = "API-only quality gate"
@@ -253,7 +253,7 @@ ruff format --check apps/api/
 mypy apps/api/skillhub/ --strict
 python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
 """
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 [tasks."quality-gate:web"]
 description = "Web-only quality gate"
@@ -423,7 +423,7 @@ echo "=== TypeScript Type Check ==="
 npx tsc --noEmit -p apps/web/tsconfig.json
 echo "=== All type checks complete ==="
 """
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 # ─── Utility Tasks ────────────────────────────────────────────────────────────
 
@@ -522,7 +522,7 @@ echo "  Written to libs/shared-types/src/api.generated.ts"
 echo ""
 echo "Docs generation complete."
 """
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 # ─── Development Workflow Tasks ───────────────────────────────────────────────
 
@@ -612,7 +612,7 @@ else
   exit 1
 fi
 """
-env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
 
 # ─── Tracing ──────────────────────────────────────────────────────────────────
 
