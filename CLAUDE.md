@@ -74,5 +74,4 @@ Skills are installed in `.claude/skills/` and guide structured development.
 - `mise run test:api` — Run API tests
 - `mise run test:web` — Run web tests
 - `mise run quality-gate` — Full CI gate locally
-- `mise run db:migrate` — Run database migrations
 - `mise run db:seed` — Seed database

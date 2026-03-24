@@ -2,12 +2,6 @@
 
 Internal AI skills marketplace. Browse, install, review, share Claude skills.
 
-## Demo
-
-![App Demo](app-demo.gif)
-
-![Tests](tests.gif)
-
 ## Quick Start
 
 ```
