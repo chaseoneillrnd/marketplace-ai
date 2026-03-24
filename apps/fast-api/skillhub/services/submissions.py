@@ -877,6 +877,76 @@ def resubmit_submission(
     }
 
 
+def _submission_to_dict(submission: Submission) -> dict[str, Any]:
+    """Convert a Submission ORM instance to a plain dict."""
+    return {
+        "id": submission.id,
+        "display_id": submission.display_id,
+        "name": submission.name,
+        "short_desc": submission.short_desc,
+        "category": submission.category,
+        "content": submission.content,
+        "declared_divisions": submission.declared_divisions,
+        "division_justification": submission.division_justification,
+        "status": submission.status.value,
+        "submitted_by": submission.submitted_by,
+        "target_skill_id": submission.target_skill_id,
+        "content_hash": submission.content_hash,
+        "created_at": submission.created_at,
+        "updated_at": submission.updated_at,
+    }
+
+
+def version_submission(
+    db: Session,
+    skill_id: UUID,
+    user_id: UUID,
+    content: str,
+    changelog: str,
+    declared_divisions: list[str],
+    division_justification: str,
+) -> dict[str, Any]:
+    """Create a new submission targeting an existing skill for version update."""
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise ValueError("Skill not found")
+
+    # Only skill author can submit versions
+    if str(skill.author_id) != str(user_id):
+        raise PermissionError("Only the skill author can submit new versions")
+
+    submission = Submission(
+        id=uuid.uuid4(),
+        display_id=_generate_display_id(),
+        skill_id=None,  # not yet linked — linked on approval
+        submitted_by=user_id,
+        name=skill.name,
+        short_desc=skill.short_desc,
+        category=skill.category,
+        content=content,
+        declared_divisions=declared_divisions,
+        division_justification=division_justification,
+        status=SubmissionStatus.SUBMITTED,
+        target_skill_id=skill_id,
+        content_hash=compute_content_hash(content),
+        submitted_via="form",
+    )
+    db.add(submission)
+
+    _write_audit(
+        db,
+        event_type="submission.version_created",
+        actor_id=user_id,
+        target_type="submission",
+        target_id=str(submission.id),
+        metadata={"target_skill_id": str(skill_id), "changelog": changelog},
+    )
+
+    db.commit()
+    db.refresh(submission)
+    return _submission_to_dict(submission)
+
+
 def get_audit_trail(db: Session, display_id: str) -> list[dict[str, Any]]:
     """Return the state-transition audit trail for a submission."""
     submission = get_submission_by_display_id(db, display_id)

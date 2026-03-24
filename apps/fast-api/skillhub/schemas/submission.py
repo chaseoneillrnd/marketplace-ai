@@ -136,6 +136,15 @@ class AccessRequestsResponse(BaseModel):
     has_more: bool
 
 
+class VersionSubmissionRequest(BaseModel):
+    """Request body for submitting a new version of an approved skill."""
+
+    content: str = Field(min_length=1)
+    changelog: str = Field(min_length=1)
+    declared_divisions: list[str] = Field(min_length=1)
+    division_justification: str = Field(min_length=1)
+
+
 class ResubmitRequest(BaseModel):
     """Request body for resubmitting a submission after changes requested."""
 

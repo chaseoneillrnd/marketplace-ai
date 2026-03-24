@@ -21,7 +21,9 @@ from skillhub.schemas.skill import (
     SkillVersionResponse,
     SortOption,
 )
+from skillhub.schemas.submission import VersionSubmissionRequest
 from skillhub.services.skills import browse_skills, get_skill_detail, increment_view_count
+from skillhub.services.submissions import version_submission
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,45 @@ def list_versions(slug: str) -> tuple:
         for v in versions
     ]
     return jsonify(items), 200
+
+
+@bp.route("/api/v1/skills/<slug>/versions", methods=["POST"])
+def create_version(slug: str) -> tuple:
+    """Submit a new version of an approved skill."""
+    user = g.current_user
+    if not user:
+        return jsonify({"detail": "Authentication required"}), 401
+
+    db = get_db()
+
+    from skillhub_db.models.skill import Skill as SkillModel
+
+    skill = db.query(SkillModel).filter(SkillModel.slug == slug).first()
+    if not skill:
+        return jsonify({"detail": f"Skill '{slug}' not found"}), 404
+
+    body = request.get_json(force=True) or {}
+    try:
+        payload = VersionSubmissionRequest(**body)
+    except Exception as exc:
+        return jsonify({"detail": str(exc)}), 422
+
+    try:
+        result = version_submission(
+            db,
+            skill_id=skill.id,
+            user_id=UUID(user["user_id"]),
+            content=payload.content,
+            changelog=payload.changelog,
+            declared_divisions=payload.declared_divisions,
+            division_justification=payload.division_justification,
+        )
+    except PermissionError as exc:
+        return jsonify({"detail": str(exc)}), 403
+    except ValueError as exc:
+        return jsonify({"detail": str(exc)}), 404
+
+    return jsonify(result), 201
 
 
 @bp.route("/api/v1/skills/<slug>/versions/latest", methods=["GET"])
