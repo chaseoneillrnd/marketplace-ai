@@ -1,0 +1,13 @@
+{
+  "name": "@skillhub/docs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "docs:dev": "vitepress dev src --port 5174",
+    "docs:build": "vitepress build src",
+    "docs:preview": "vitepress preview src --port 5174"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.0"
+  }
+}

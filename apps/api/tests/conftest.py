@@ -1,23 +1,23 @@
-"""Shared test fixtures for SkillHub API tests."""
+"""Shared test fixtures for Flask SkillHub API tests."""
 
 from __future__ import annotations
 
 import time
 from typing import Any
+from unittest.mock import MagicMock
 
 import jwt
 import pytest
-from fastapi.testclient import TestClient
 
-from skillhub.config import Settings
-from skillhub.main import create_app
+from skillhub_flask.app import create_app
+from skillhub_flask.config import AppConfig, Settings
 
 TEST_JWT_SECRET = "test-secret-for-unit-tests"
 TEST_JWT_ALGORITHM = "HS256"
 
 
 def _make_settings(**overrides: Any) -> Settings:
-    """Create a Settings instance suitable for testing (no real DB needed)."""
+    """Create a Settings instance suitable for testing."""
     defaults: dict[str, Any] = {
         "app_name": "SkillHub-Test",
         "app_version": "0.0.1-test",
@@ -32,24 +32,6 @@ def _make_settings(**overrides: Any) -> Settings:
     return Settings(**defaults)
 
 
-@pytest.fixture()
-def test_settings() -> Settings:
-    """Return a test-oriented Settings object."""
-    return _make_settings()
-
-
-@pytest.fixture()
-def app(test_settings: Settings) -> Any:
-    """Return a FastAPI application wired with test settings."""
-    return create_app(settings=test_settings)
-
-
-@pytest.fixture()
-def client(app: Any) -> TestClient:
-    """Return a TestClient bound to the test app."""
-    return TestClient(app)
-
-
 def make_token(
     payload: dict[str, Any] | None = None,
     secret: str = TEST_JWT_SECRET,
@@ -59,7 +41,35 @@ def make_token(
     """Generate a JWT for testing purposes."""
     data: dict[str, Any] = payload or {"sub": "test-user", "division": "engineering"}
     if expired:
-        data["exp"] = int(time.time()) - 3600  # 1 hour in the past
+        data["exp"] = int(time.time()) - 3600
     elif "exp" not in data:
-        data["exp"] = int(time.time()) + 3600  # 1 hour in the future
+        data["exp"] = int(time.time()) + 3600
     return jwt.encode(data, secret, algorithm=algorithm)
+
+
+@pytest.fixture()
+def test_settings() -> Settings:
+    """Return a test-oriented Settings object."""
+    return _make_settings()
+
+
+@pytest.fixture()
+def mock_db() -> MagicMock:
+    """Return a mock database session."""
+    return MagicMock()
+
+
+@pytest.fixture()
+def app(test_settings: Settings, mock_db: MagicMock) -> Any:
+    """Return a Flask application wired with test settings and mock DB."""
+    config = AppConfig(
+        settings=test_settings,
+        session_factory=lambda: mock_db,
+    )
+    return create_app(config=config)
+
+
+@pytest.fixture()
+def client(app: Any) -> Any:
+    """Return a test client bound to the test app."""
+    return app.test_client()

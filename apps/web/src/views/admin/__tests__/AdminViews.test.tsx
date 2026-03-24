@@ -12,6 +12,34 @@ import { AdminExportView } from '../AdminExportView';
 
 vi.mock('recharts', async () => await import('../../../__mocks__/recharts'));
 
+vi.mock('../../../hooks/useAdminQueue', () => ({
+  useAdminQueue: () => ({
+    data: null,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    claim: vi.fn(),
+    decide: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { user_id: 'u1', name: 'Admin', username: 'admin', email: 'a@b.com', division: 'eng', role: 'admin', is_admin: true },
+    isAuthenticated: true,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../lib/api', () => ({
+  api: {
+    get: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 }),
+    post: vi.fn().mockResolvedValue({}),
+    patch: vi.fn().mockResolvedValue({}),
+  },
+}));
+
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <MemoryRouter>
@@ -40,14 +68,14 @@ describe('AdminDashboardView', () => {
 });
 
 describe('AdminQueueView', () => {
-  it('renders Queue heading', () => {
+  it('renders Review Queue heading', () => {
     render(<AdminQueueView />, { wrapper });
-    expect(screen.getByRole('heading', { name: /queue/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /review queue/i })).toBeInTheDocument();
   });
 
-  it('renders Coming soon text', () => {
+  it('renders empty state when no data', () => {
     render(<AdminQueueView />, { wrapper });
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByText(/no items/i)).toBeInTheDocument();
   });
 });
 
@@ -57,9 +85,9 @@ describe('AdminFeedbackView', () => {
     expect(screen.getByRole('heading', { name: /feedback/i })).toBeInTheDocument();
   });
 
-  it('renders Coming soon text', () => {
+  it('renders data-testid', () => {
     render(<AdminFeedbackView />, { wrapper });
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByTestId('admin-feedback-view')).toBeInTheDocument();
   });
 });
 
@@ -81,9 +109,9 @@ describe('AdminRoadmapView', () => {
     expect(screen.getByRole('heading', { name: /roadmap/i })).toBeInTheDocument();
   });
 
-  it('renders Coming soon text', () => {
+  it('renders data-testid', () => {
     render(<AdminRoadmapView />, { wrapper });
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByTestId('admin-roadmap-view')).toBeInTheDocument();
   });
 });
 
@@ -93,8 +121,8 @@ describe('AdminExportView', () => {
     expect(screen.getByRole('heading', { name: /export/i })).toBeInTheDocument();
   });
 
-  it('renders Coming soon text', () => {
+  it('renders data-testid', () => {
     render(<AdminExportView />, { wrapper });
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByTestId('admin-export-view')).toBeInTheDocument();
   });
 });

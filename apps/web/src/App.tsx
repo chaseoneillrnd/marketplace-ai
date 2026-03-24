@@ -11,6 +11,7 @@ import { BrowseView } from './views/BrowseView';
 import { SearchView } from './views/SearchView';
 import { FilteredView } from './views/FilteredView';
 import { SkillDetailView } from './views/SkillDetailView';
+import { SubmitSkillPage } from './views/submit/SubmitSkillPage';
 import { RequireAdmin } from './components/admin/RequireAdmin';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLoadingSkeleton } from './components/admin/AdminLoadingSkeleton';
@@ -26,6 +27,9 @@ const AdminFeedbackView = lazy(() =>
 );
 const AdminSkillsView = lazy(() =>
   import('./views/admin/AdminSkillsView').then((m) => ({ default: m.AdminSkillsView })),
+);
+const AdminFlagsView = lazy(() =>
+  import('./views/admin/AdminFlagsView').then((m) => ({ default: m.AdminFlagsView })),
 );
 const AdminRoadmapView = lazy(() =>
   import('./views/admin/AdminRoadmapView').then((m) => ({ default: m.AdminRoadmapView })),
@@ -89,6 +93,7 @@ function AppShell() {
           <Route path="/search" element={<SearchView />} />
           <Route path="/filtered" element={<FilteredView />} />
           <Route path="/skills/:slug" element={<SkillDetailView />} />
+          <Route path="/submit" element={<SubmitSkillPage />} />
 
           {/* Admin routes — gated by RequireAdmin */}
           <Route element={<RequireAdmin />}>
@@ -104,6 +109,7 @@ function AppShell() {
               <Route path="queue" element={<AdminQueueView />} />
               <Route path="feedback" element={<AdminFeedbackView />} />
               <Route path="skills" element={<AdminSkillsView />} />
+              <Route path="flags" element={<AdminFlagsView />} />
               <Route path="roadmap" element={<AdminRoadmapView />} />
               <Route path="export" element={<AdminExportView />} />
             </Route>

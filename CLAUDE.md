@@ -3,12 +3,12 @@
 ## Project Overview
 
 Internal AI skills marketplace (SkillHub) enabling org-wide Claude skill sharing.
-Built as an NX monorepo with FastAPI backend, React frontend, and MCP server.
+Built as an NX monorepo with Flask/APIFlask backend, React frontend, and MCP server.
 
 ## Tech Stack
 
 - **Frontend:** React 18 + Vite + TypeScript
-- **Backend:** FastAPI (Python 3.12) + SQLAlchemy 2 + Alembic
+- **Backend:** Flask/APIFlask (Python 3.12) + SQLAlchemy 2 + Alembic
 - **MCP Server:** Python + mcp SDK
 - **Database:** PostgreSQL 16 + Redis 7
 - **Monorepo:** NX + mise
@@ -43,7 +43,7 @@ Rules:
 
 - No secrets in code — all via Settings (pydantic-settings)
 - JWT: decode before trusting, never trust raw claims without verification
-- Division enforcement happens in FastAPI — never client-side
+- Division enforcement happens server-side (Flask before_request) — never client-side
 - audit_log: append-only, no UPDATE/DELETE from application code
 
 ## Design Documents
