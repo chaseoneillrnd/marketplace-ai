@@ -22,6 +22,7 @@ All file paths are relative to the repository root (`/Users/chase/wk/marketplace
 
 ## Table of Contents
 
+0. [Stage 0 — E2E Baseline Against Flask (PREREQUISITE GATE)](#stage-0)
 1. [Stage 1 — Populate docs/features/index.md](#stage-1)
 2. [Stage 2 — Audit and Fix E2E Playwright Tests](#stage-2)
 3. [Stage 3 — Feature Demo GIF Infrastructure](#stage-3)
@@ -92,6 +93,101 @@ Before starting, the agent should read these files:
 | theme | `dark-light-toggle.spec.ts` | 103 |
 
 All spec files live under `apps/web/apps/web/e2e/tests/`.
+
+---
+
+<a id="stage-0"></a>
+## Stage 0 — E2E Baseline Against Flask (PREREQUISITE GATE)
+
+### Overview
+
+Before executing any Phase 6 work, run all 116 existing Playwright tests against the Flask backend to establish a baseline. This is a hard prerequisite gate — Phase 6 execution must not begin until this stage passes.
+
+### Why This Matters
+
+The E2E tests were originally written against FastAPI. While the Flask migration preserved API routes and response shapes, subtle differences (error formats, validation status codes, timing) may cause failures. Discovering these during Phase 6 work wastes time and creates confusion about whether failures are from Phase 6 changes or pre-existing issues.
+
+---
+
+### Prompt 0.1: Run Full E2E Baseline and Document Results
+
+**Goal:** Run all 116 Playwright tests against Flask, document pass/fail, fix Flask-specific failures.
+
+**Time estimate:** 30-45 minutes
+
+#### Prerequisites
+
+Both servers must be running against the Flask backend:
+```bash
+# Terminal 1: Flask API
+mise run dev:api
+
+# Terminal 2: Vite dev server
+mise run dev:web
+
+# Seed the database
+mise run db:seed
+```
+
+#### Instructions
+
+1. RUN the full suite:
+   ```bash
+   cd apps/web/apps/web/e2e && npx playwright test --reporter=list 2>&1 | tee /tmp/e2e-baseline.txt
+   ```
+
+2. Document which tests pass and which fail. For each failure, categorize:
+   - **Flask-specific:** Different error format, status code, or response shape
+   - **Timing/flaky:** Race condition, slow server startup
+   - **Pre-existing:** Bug that existed before this migration
+
+3. Fix all Flask-specific failures:
+   - Status 422 -> 400 for validation errors
+   - `{"detail": ...}` -> `{"description": ...}` in error response assertions
+   - Any FastAPI-only endpoints (`/docs`, `/openapi.json`, `/redoc`)
+   - Tag every change with `// Flask migration: <what changed>`
+
+4. For genuinely flaky tests, mark with `test.fixme()` and document the root cause.
+
+5. Re-run until the suite passes with 0 failures (excluding `fixme`-marked tests).
+
+6. CREATE `docs/migration/e2e-baseline-report.md`:
+   ```markdown
+   # E2E Baseline Report — Pre-Phase 6
+
+   **Date:** <today>
+   **Branch:** migration/flask-port
+   **Backend:** Flask (Phase 5)
+   **Total tests:** 116
+   **Passed:** <count>
+   **Failed → Fixed:** <count with details>
+   **Skipped/fixme:** <count with reasons>
+
+   ## Flask-Specific Fixes Applied
+   | File | Change | Reason |
+   |------|--------|--------|
+   | ... | ... | ... |
+
+   ## Baseline Confirmed
+   This baseline was verified BEFORE any Phase 6 changes.
+   All subsequent E2E failures can be attributed to Phase 6 work.
+   ```
+
+#### Acceptance Criteria
+
+- [ ] All 116 tests executed against Flask backend
+- [ ] `npx playwright test` exits with code 0 (excluding fixme)
+- [ ] `docs/migration/e2e-baseline-report.md` exists with accurate counts
+- [ ] Every fix tagged with `// Flask migration:` comment
+- [ ] No Phase 6 code changes made in this prompt
+- [ ] This gate PASSES before any Stage 1, 2, or 3 work begins
+
+#### DO NOT
+
+- Do NOT begin Phase 6 implementation work until this gate passes
+- Do NOT add new tests — only fix existing ones
+- Do NOT modify test logic beyond Flask compatibility fixes
+- Do NOT commit test artifacts (screenshots, traces)
 
 ---
 
@@ -562,6 +658,43 @@ Both servers running. Database seeded (`mise run db:seed`).
 
 ---
 
+### Additional E2E Coverage Gaps (add during or after Prompt 2.4)
+
+These tests should be added to the E2E suite to cover gaps identified by cross-functional review:
+
+#### Feature Flag E2E Tests
+
+Add to `apps/web/apps/web/e2e/tests/admin/feature-flags.spec.ts` (or as part of the Phase 6 stubs):
+- Toggle a feature flag via the admin UI and verify the gated feature appears or disappears
+- Verify that non-admin users cannot see or access the flags panel
+- Test flag state persistence across page reloads
+
+#### Visual Regression for New Modals
+
+Add visual regression assertions for any new modal components (RequestChangesModal, RejectModal, etc.):
+```typescript
+// After opening each modal:
+await expect(page).toHaveScreenshot('request-changes-modal.png', {
+  maxDiffPixelRatio: 0.01,
+});
+```
+Use `page.screenshot()` + `toHaveScreenshot()` for deterministic visual snapshots.
+
+#### Upload Endpoint Test Matrix
+
+Add a test matrix for file upload endpoints (SKILL.md submission):
+
+| Scenario | Expected |
+|----------|----------|
+| Valid SKILL.md, `application/octet-stream` | 200 OK |
+| Valid SKILL.md, `multipart/form-data` | 200 OK |
+| File exceeds 1MB size limit | 413 or 400 with error message |
+| Missing required frontmatter fields | 400 with validation details |
+| Content truncation at 50KB display limit | Response includes truncated content flag |
+| Empty file upload | 400 with "empty file" error |
+
+---
+
 <a id="stage-3"></a>
 ## Stage 3 — Feature Demo GIF Infrastructure
 
@@ -749,6 +882,7 @@ Phase 6 features (Admin HITL Enhancements, Docs Portal, Submission UI) are being
 
 | # | Prompt | Stage | Time | Output |
 |---|--------|-------|------|--------|
+| 0.1 | E2E baseline against Flask | 0 | 30-45 min | Baseline report, all 116 tests passing |
 | 1.1 | Discovery + Quality Pipeline docs | 1 | 15 min | Sections 1-2 + full TOC in index.md |
 | 1.2 | Governance + Community docs | 1 | 15 min | Sections 3-4 in index.md |
 | 1.3 | DevInt + Ops + Auth docs | 1 | 20 min | Sections 5-7 in index.md |
@@ -760,11 +894,13 @@ Phase 6 features (Admin HITL Enhancements, Docs Portal, Submission UI) are being
 | 3.1 | Asset directory + recording guide | 3 | 10 min | docs/features/assets/ + RECORDING.md |
 | 3.2 | Phase 6 E2E stubs | 3 | 15 min | 2 new spec files, 9 test stubs |
 
-**Total: 10 prompts, ~180 minutes**
+**Total: 11 prompts, ~210-225 minutes**
 
 ### Execution Order
 
-Stages can be executed in parallel by separate agents:
+**Stage 0** is a prerequisite gate — it must pass before any other stage begins.
+
+After Stage 0 passes, stages can be executed in parallel by separate agents:
 - **Stage 1** (Prompts 1.1-1.4) is documentation-only — no code dependencies
 - **Stage 2** (Prompts 2.1-2.4) requires running servers — must be sequential
 - **Stage 3** (Prompts 3.1-3.2) is file creation — no dependencies on Stage 1 or 2

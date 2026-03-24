@@ -1826,6 +1826,11 @@ default behavior noted, but structure code to allow easy configuration changes.
    DEFAULT: URL + list_tools only (no full protocol).
    CONFIG: SKILLHUB_MCP_FULL_INTROSPECTION feature flag, default false
    BEHAVIOR: When enabled, also fetch resources and prompts.
+
+6. display_id vs UUID in Phase 6 endpoint URLs?
+   RESOLVED: New Phase 6 user-facing submission endpoints use display_id in
+   URLs (resubmit, audit-log). Internal/admin endpoints (diff) use UUID.
+   Add get_submission_by_display_id(db, display_id) helper to submissions service.
 ```
 
 ---

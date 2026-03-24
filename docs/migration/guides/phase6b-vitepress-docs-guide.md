@@ -184,7 +184,8 @@ Requirements:
            text: 'Reference',
            items: [
              { text: 'FAQ', link: '/faq' },
-             { text: 'Resources', link: '/resources' }
+             { text: 'Resources', link: '/resources' },
+             { text: 'Admin Guide', link: '/admin-guide' }
            ]
          }
        ]
@@ -300,6 +301,7 @@ Requirements:
    - apps/docs/src/feature-requests.md
    - apps/docs/src/faq.md
    - apps/docs/src/resources.md
+   - apps/docs/src/admin-guide.md
 
    Each stub should have:
    ---
@@ -319,9 +321,9 @@ Write tests FIRST:
 3. Config validation test (can be a simple Node.js script or vitest):
    - Import config.ts and assert base === '/docs/'
    - Assert sidebar has 4 groups
-   - Assert sidebar total items count === 10
+   - Assert sidebar total items count === 11
 4. Stub page validation:
-   - Assert all 10 stub .md files exist in apps/docs/src/
+   - Assert all 11 stub .md files exist in apps/docs/src/
    - Assert each has frontmatter with title field
 
 Do NOT:
@@ -337,11 +339,11 @@ Acceptance Criteria:
 - [ ] npx nx run docs:build produces .vitepress/dist/ output with index.html
 - [ ] VitePress config has base: '/docs/'
 - [ ] "Back to SkillHub" link in nav
-- [ ] Sidebar has 4 groups with 10 total page entries
+- [ ] Sidebar has 4 groups with 11 total page entries
 - [ ] Local search enabled
 - [ ] Custom theme CSS applied with SkillHub brand colors
 - [ ] Landing page renders hero + 4 feature cards
-- [ ] All 10 stub pages exist and build without errors
+- [ ] All 11 stub pages exist and build without errors
 - [ ] mise run dev:docs works
 - [ ] mise run build:docs works
 - [ ] All tests pass
@@ -352,6 +354,46 @@ Acceptance Criteria:
 ## Phase B.2 — Documentation Content
 
 **Goal:** Write comprehensive user-facing documentation across 10 pages covering getting started, skill usage, discovery, social features, submission, and reference material.
+
+### Audience Segmentation Guidance
+
+All documentation pages should support three audience entry points. Apply this pattern across the content:
+
+**Three audience personas:**
+1. **"I'm a new user"** — Wants to discover and install their first skill. Entry point: `getting-started.md`
+2. **"I'm writing a skill"** — Wants to author and submit a skill. Entry point: `submitting-a-skill.md`
+3. **"I'm an admin"** — Wants to manage flags, review submissions, configure divisions. Entry point: A new `admin-guide.md` stub (add to sidebar under "Reference")
+
+**Each persona gets its own Getting Started page:**
+- `getting-started.md` serves persona 1 (already planned)
+- `submitting-a-skill.md` serves persona 2 (already planned — add a "Quick Start for Authors" section at the top)
+- Add an `admin-guide.md` stub for persona 3 (content in Phase 6A scope, but the page and sidebar entry should exist now)
+
+**Deep links from docs to app features:**
+Throughout the documentation, add contextual links back to the live application using a consistent pattern:
+```markdown
+::: tip Try it now
+[Browse the skill catalog in SkillHub →](https://skillhub.internal/skills)
+:::
+```
+Use these "Try this in SkillHub" callouts wherever a documented feature has a corresponding app page. Key deep links:
+- Getting Started → `skillhub.internal/` (homepage)
+- Skill Discovery → `skillhub.internal/skills` (browse)
+- Social Features → `skillhub.internal/skills/{slug}` (skill detail with reviews)
+- Submitting a Skill → `skillhub.internal/submit` (submission form)
+- Feature Requests → `skillhub.internal/feedback` (feedback form)
+
+**Feature-flagged content badges:**
+For features gated behind feature flags (e.g., MCP-assisted drafting, LLM live hints), annotate the documentation with a badge:
+```markdown
+::: warning Beta
+This feature is available to beta users. Contact your admin to request access.
+:::
+```
+Apply this badge to:
+- MCP-assisted drafting mode (`submission.mcp_mode` flag)
+- Live LLM quality hints (`submission.llm_live_assist` flag)
+- VitePress docs portal link (`docs.vitepress_portal` flag)
 
 ---
 
@@ -1115,7 +1157,7 @@ Add the User Documentation Portal entry to docs/features/index.md and run
 comprehensive validation of the entire VitePress documentation site.
 
 CONTEXT:
-- VitePress app at apps/docs/ with 10 content pages + index (11 total)
+- VitePress app at apps/docs/ with 11 content pages + index (12 total)
 - Feature index at docs/features/index.md (currently has a heading and one-liner)
 - All documentation content is complete from B.2.1, B.2.2, B.2.3
 - Need to add a feature entry and do final quality checks
@@ -1166,8 +1208,8 @@ Acceptance Criteria:
 - [ ] docs/features/index.md updated with User Documentation Portal entry
 - [ ] Placeholder asset created or documented
 - [ ] VitePress build succeeds
-- [ ] All 10 content pages have frontmatter with title and description
-- [ ] All 10 content pages have > 50 lines (no stubs remaining)
+- [ ] All 11 content pages have frontmatter with title and description
+- [ ] All 11 content pages have > 50 lines (no stubs remaining, except admin-guide.md which is filled in Phase 6A)
 - [ ] All sidebar entries resolve to existing files
 - [ ] All internal links resolve
 - [ ] NX recognizes the docs project
@@ -1198,7 +1240,7 @@ PHASE B.3 — Integration and Finalization (1 prompt)
          Updates: docs/features/index.md, runs full quality audit
 
 TOTAL: 5 prompts, ~2.5-3.5 hours estimated
-PAGES: 11 (10 content + 1 index/landing)
+PAGES: 12 (11 content + 1 index/landing)
 ```
 
 ### Dependency Graph
@@ -1236,6 +1278,7 @@ apps/docs/
 │   ├── feature-requests.md
 │   ├── faq.md
 │   ├── resources.md
+│   ├── admin-guide.md
 │   ├── assets/
 │   │   ├── screenshots/.gitkeep
 │   │   └── diagrams/.gitkeep

@@ -114,6 +114,10 @@ These were added in Phase 6 DB prep (migration 005):
 
 ---
 
+> **NOTE:** The `change_request_flags` JSON column on submissions should be referenced as `review_checklist` in UI code and documentation to avoid confusion with the FeatureFlag system.
+
+---
+
 ## Prompt A.2.1 — Revision Tracking Service
 
 **Time estimate:** 30-40 minutes
@@ -205,6 +209,8 @@ def resubmit_submission(
 ```
 
 Implementation requirements:
+
+0. **Extract `VALID_TRANSITIONS` dict as single source of truth** — define a module-level constant mapping each `SubmissionStatus` to its set of valid target statuses. All transition checks in `resubmit_submission()`, `review_submission()`, and `version_submission()` must reference this dict instead of inline conditionals. Add **hypothesis property-based testing** for revision cycle invariants (e.g., `revision_number` is monotonically increasing, `content_hash` is always 64 hex chars). Add explicit tests that **terminal states (`APPROVED`, `REJECTED`, `PUBLISHED`) are absorbing** — attempting any transition out of them raises `ValueError`.
 
 1. Load submission by `submission_id`. Raise `ValueError("Submission not found")` if missing.
 2. Check `submission.submitted_by == user_id`. Raise `PermissionError("Not authorized to resubmit")` if mismatch.
@@ -1764,6 +1770,242 @@ Compare skill versions side-by-side with added/removed line highlighting. Select
 
 ---
 
+## Phase A.7 — Feature Flags Admin Panel
+
+### Prompt A.7.1: Feature Flags Admin View
+
+**Time estimate:** 35-45 minutes
+**What:** Add an admin view for managing feature flags with audit trail, blast radius preview, and heat map visualization.
+
+### DO NOT
+
+- Modify existing feature flag resolution logic in middleware without tests
+- Hard-code division names — resolve from the database
+- Skip audit logging for any flag mutation
+- Use `console.log()` or `print()` in production paths
+
+### Steps
+
+#### 1. Backend additions (Flask blueprint)
+
+**MODIFY** `apps/api/skillhub_flask/blueprints/admin.py`
+
+Add audit trail to flag operations:
+- In `create_flag`, `update_flag`, and `delete_flag` handlers, call `audit_log_append()` with event types `flag.created`, `flag.updated`, and `flag.deleted` respectively
+- Include `before` and `after` state in the audit payload:
+  ```python
+  audit_log_append(
+      db,
+      event_type="flag.updated",
+      actor_id=user_id,
+      payload={"flag_key": key, "before": old_state, "after": new_state},
+  )
+  ```
+
+**CREATE** `apps/fast-api/skillhub/services/flag_context.py`
+
+Add a `FlagContext` helper — a per-request typed object that resolves all flags with division overrides, replacing scattered `db.query(FeatureFlag)` lookups:
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class FlagContext:
+    hitl_revision_tracking: bool
+    hitl_change_request_flags: bool
+    submission_mcp_mode: bool
+    submission_llm_live_assist: bool
+    docs_vitepress_portal: bool
+    admin_flags_panel: bool
+
+def resolve_flag_context(db: Session, *, division: str | None = None) -> FlagContext:
+    """Resolve all feature flags for the given division into a typed object."""
+    # Query all FeatureFlag rows, apply division overrides, return FlagContext
+```
+
+- Resolved per-request from `get_flags()` with user's division
+- Passed to service functions as a parameter
+- Replaces scattered `db.query(FeatureFlag).filter(key==...)` lookups
+- Testable without DB (pass `FlagContext` directly)
+
+#### 2. TEST RED — Write backend tests
+
+**CREATE** `apps/api/tests/test_flag_admin.py`
+
+Test cases:
+1. **test_create_flag_writes_audit_log** — Create a flag. Assert `AuditLog` entry with `event_type="flag.created"`.
+2. **test_update_flag_writes_audit_log_with_before_after** — Update a flag. Assert audit payload contains `before` and `after` state.
+3. **test_delete_flag_writes_audit_log** — Delete a flag. Assert `event_type="flag.deleted"`.
+4. **test_flag_context_resolves_defaults** — No overrides. Assert `FlagContext` fields match default values.
+5. **test_flag_context_applies_division_override** — Division override exists. Assert override takes precedence.
+6. **test_flag_context_usable_without_db** — Construct `FlagContext` directly. Assert all fields accessible.
+
+**VERIFY:** Tests FAIL.
+
+#### 3. Implement and TEST GREEN
+
+Implement the audit trail additions and `FlagContext` service.
+
+**VERIFY:** `cd apps/api && python -m pytest tests/test_flag_admin.py -x` — all 6 tests GREEN.
+
+#### 4. Frontend — AdminFlagsView.tsx
+
+**CREATE** `apps/web/src/views/admin/AdminFlagsView.tsx`
+
+Features:
+- **Heat map matrix:** flags as rows, divisions as columns, colored dots (green = enabled, red = disabled, grey = no override)
+- **Three flag groups:**
+  - *Rollout* flags: progress bar showing percentage of divisions enabled
+  - *Safety* flags: red border, type-to-confirm before toggling (user must type the flag key)
+  - *Experimental* flags: show days counter since flag was created
+- **"Blast radius" preview** before toggling: show a confirmation with "This will affect N users across M divisions" computed from division membership counts
+- **Flag activity feed:** recent changes with timestamps and actor names (from audit log)
+
+**MODIFY** `apps/web/src/views/admin/AdminSidebar.tsx` (or equivalent navigation):
+- Add "Feature Flags" link between "Users" and "Analytics" in the admin sidebar
+
+#### 5. TEST RED — Write frontend tests
+
+**CREATE** `apps/web/src/views/admin/__tests__/AdminFlagsView.test.tsx`
+
+Test cases:
+1. **renders heat map with flags and divisions** — Assert flag rows and division columns visible.
+2. **renders green dot for enabled flag** — Assert correct color indicator.
+3. **renders red dot for disabled flag** — Assert correct color indicator.
+4. **renders grey dot for no-override** — Assert correct color indicator.
+5. **groups flags into Rollout, Safety, Experimental** — Assert group headings visible.
+6. **Rollout flags show progress bar** — Assert progress bar element.
+7. **Safety flags require type-to-confirm** — Toggle a safety flag. Assert confirmation input appears requiring the flag key.
+8. **shows blast radius preview before toggle** — Click toggle. Assert "This will affect N users across M divisions" text.
+9. **renders flag activity feed** — Assert recent changes with timestamps and actor names.
+10. **sidebar shows Feature Flags link** — Assert link present between Users and Analytics.
+
+**VERIFY:** Tests FAIL.
+
+#### 6. Implement and TEST GREEN
+
+Implement `AdminFlagsView` and sidebar modification.
+
+**VERIFY:** `cd apps/web && npx vitest run src/views/admin/__tests__/AdminFlagsView.test.tsx` — all 10 tests GREEN.
+
+#### 7. Seed new feature flags
+
+**MODIFY** the seed script (or create a migration data script) to add these flags:
+
+| Flag Key | Default | Notes |
+|----------|---------|-------|
+| `hitl.revision_tracking` | `false` | Gates revision tracking UI |
+| `hitl.change_request_flags` | `false` | Gates structured change request flow |
+| `submission.mcp_mode` | `false` | Gates MCP-assisted submission drafting |
+| `submission.llm_live_assist` | `false` | Gates live LLM hints during submission |
+| `docs.vitepress_portal` | `false` | Gates docs portal link in navigation |
+| `admin.flags_panel` | `true` for `platform_team` | Gates the flags admin panel itself |
+
+#### 8. E2E test
+
+**CREATE** `apps/web/apps/web/e2e/tests/admin/feature-flags.spec.ts`
+
+```typescript
+import { test, expect } from '../../fixtures/auth';
+
+test.describe('Feature Flags Admin', () => {
+  test('toggle a flag and verify feature state change', async ({ page, loginAs }) => {
+    await loginAs('alice'); // platform team admin
+    await page.goto('/admin/flags');
+    // Find a flag toggle, note current state
+    // Toggle it
+    // Navigate to the feature area
+    // Verify the feature is now visible/hidden based on new flag state
+  });
+});
+```
+
+#### 9. Update docs/features/index.md
+
+**MODIFY** `docs/features/index.md` — append:
+
+```markdown
+## Feature Flags Admin Panel
+![Feature Flags Admin](assets/feature-flags-admin.gif)
+Heat map matrix for managing feature flags across divisions with blast radius preview, type-to-confirm safety flags, and a real-time activity feed.
+```
+
+### Acceptance Criteria
+
+- [ ] Flag create/update/delete operations write audit log entries with before/after state
+- [ ] `FlagContext` resolves all flags with division overrides into a typed object
+- [ ] `FlagContext` is testable without a database connection
+- [ ] Heat map renders flags x divisions with colored status dots
+- [ ] Flags are grouped into Rollout, Safety, and Experimental categories
+- [ ] Safety flags require type-to-confirm before toggling
+- [ ] Blast radius preview shows affected user/division counts before toggle
+- [ ] Activity feed shows recent flag changes with actor and timestamp
+- [ ] Admin sidebar includes "Feature Flags" between Users and Analytics
+- [ ] 6 new feature flags seeded with correct defaults
+- [ ] E2E test toggles a flag and verifies feature state change
+- [ ] Feature index entry added
+- [ ] All 16+ new tests pass (6 backend + 10 frontend), zero regressions
+
+---
+
+### Prompt A.7.2: FlagContext Service Pattern
+
+**Time estimate:** 15-20 minutes
+**What:** Integrate the `FlagContext` typed object into the service layer as the standard pattern for feature flag access.
+
+### DO NOT
+
+- Remove the existing `get_flags()` function — `FlagContext` wraps it
+- Add runtime database queries in `FlagContext` after construction — it is resolved once per request
+- Use `FlagContext` in middleware — middleware continues to use `get_flags()` directly
+
+### Steps
+
+#### 1. TEST RED — Write FlagContext integration tests
+
+**CREATE** `apps/api/tests/test_flag_context.py`
+
+Test cases:
+1. **test_flag_context_all_fields_typed** — Construct `FlagContext` and assert every field is `bool`.
+2. **test_flag_context_from_resolve** — Call `resolve_flag_context(db, division="engineering")`. Assert returns `FlagContext` with correct values.
+3. **test_flag_context_passed_to_service** — Call a service function with `FlagContext` parameter. Assert the service uses the flag value (e.g., skips gate2 when `hitl_revision_tracking` is False).
+4. **test_flag_context_no_db_required** — Construct `FlagContext(hitl_revision_tracking=True, ...)` directly. Assert all fields accessible without any DB session.
+5. **test_flag_context_frozen** — Attempt to mutate a field. Assert `FrozenInstanceError` raised.
+
+**VERIFY:** Tests FAIL (integration not wired yet).
+
+#### 2. Wire FlagContext into request lifecycle
+
+**MODIFY** `apps/api/skillhub_flask/auth.py` (or the before_request hook):
+- After authentication, resolve `FlagContext` and store on `g.flag_context`
+- Service functions that need flags accept `flag_ctx: FlagContext` parameter
+
+#### 3. Refactor one service to use FlagContext
+
+**MODIFY** `apps/fast-api/skillhub/services/submissions.py`:
+- Update `resubmit_submission()` to accept optional `flag_ctx: FlagContext | None = None`
+- When `flag_ctx` is provided and `flag_ctx.hitl_revision_tracking` is `False`, skip diff snapshot creation (performance optimization)
+- When `flag_ctx` is `None`, fall back to existing behavior (backwards compatible)
+
+#### 4. TEST GREEN
+
+**VERIFY:** `cd apps/api && python -m pytest tests/test_flag_context.py -x` — all 5 tests GREEN.
+
+**VERIFY:** `cd apps/api && python -m pytest --tb=short -q` — full suite GREEN, no regressions.
+
+### Acceptance Criteria
+
+- [ ] `FlagContext` is a frozen dataclass with bool fields for each feature flag
+- [ ] `resolve_flag_context()` queries flags once and returns a typed `FlagContext`
+- [ ] `FlagContext` can be constructed directly without a DB (for testing)
+- [ ] `FlagContext` is immutable (frozen dataclass)
+- [ ] `g.flag_context` available in Flask request context after authentication
+- [ ] `resubmit_submission()` accepts optional `FlagContext` and adjusts behavior
+- [ ] Backwards compatible — `None` flag_ctx uses existing behavior
+- [ ] All 5 new tests pass, zero regressions
+
+---
+
 ## Final Verification Checklist
 
 After completing all prompts (A.2.1 through A.6.2), run these commands to confirm everything is green:
@@ -1809,6 +2051,12 @@ cd apps/web && npx tsc --noEmit
 | `apps/web/src/components/admin/__tests__/AuditLogPanel.test.tsx` | Frontend test |
 | `apps/web/src/components/admin/__tests__/VersionSelector.test.tsx` | Frontend test |
 | `apps/web/src/components/admin/__tests__/VersionDiffView.test.tsx` | Frontend test |
+| `apps/fast-api/skillhub/services/flag_context.py` | Service |
+| `apps/api/tests/test_flag_admin.py` | Backend test |
+| `apps/api/tests/test_flag_context.py` | Backend test |
+| `apps/web/src/views/admin/AdminFlagsView.tsx` | React view |
+| `apps/web/src/views/admin/__tests__/AdminFlagsView.test.tsx` | Frontend test |
+| `apps/web/apps/web/e2e/tests/admin/feature-flags.spec.ts` | E2E test |
 
 ### Summary of Modified Files
 
@@ -1821,10 +2069,14 @@ cd apps/web && npx tsc --noEmit
 | `apps/web/src/views/admin/AdminQueueView.tsx` | Uses SubmissionCard, RequestChangesModal, RejectModal, AuditLogPanel |
 | `apps/web/src/hooks/useAdminQueue.ts` | Added `revision_number` to ReviewQueueItem |
 | `apps/web/src/views/admin/__tests__/AdminQueueView.test.tsx` | Added 5 new test cases, updated mock data |
-| `docs/features/index.md` | Added 4 feature entries |
+| `apps/api/skillhub_flask/blueprints/admin.py` | Added audit trail to flag operations |
+| `apps/api/skillhub_flask/auth.py` | Added `g.flag_context` resolution in before_request |
+| `apps/web/src/views/admin/AdminSidebar.tsx` | Added "Feature Flags" link |
+| `docs/features/index.md` | Added 5 feature entries |
 
 ### Estimated New Test Count
 
-- Backend: ~25 new tests (8 resubmit service + 11 endpoint + 6 versioning)
-- Frontend: ~61 new tests (7 ModalShell + 8 RequestChanges + 8 Reject + 10 SubmissionCard + 12 AuditLog + 5 VersionSelector + 6 VersionDiff + 5 QueueView updates)
-- **Total: ~86 new tests**
+- Backend: ~42 new tests (8 resubmit service + 11 endpoint + 6 versioning + 6 flag admin + 5 flag context + 6 hypothesis/absorbing state)
+- Frontend: ~71 new tests (7 ModalShell + 8 RequestChanges + 8 Reject + 10 SubmissionCard + 12 AuditLog + 5 VersionSelector + 6 VersionDiff + 5 QueueView updates + 10 AdminFlagsView)
+- E2E: 1 new spec (feature flag toggle)
+- **Total: ~114 new tests**
