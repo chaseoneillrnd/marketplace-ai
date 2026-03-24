@@ -83,7 +83,7 @@ def create_new_submission() -> tuple:
     current_user: dict[str, Any] = g.current_user
     user_id = uuid.UUID(current_user["user_id"])
 
-    body = SubmissionCreateRequest(**request.get_json(force=True))
+    body = SubmissionCreateRequest.model_validate(request.get_json(force=True) or {})
 
     result = create_submission(
         db,
@@ -94,7 +94,6 @@ def create_new_submission() -> tuple:
         content=body.content,
         declared_divisions=body.declared_divisions,
         division_justification=body.division_justification,
-        background_tasks=None,  # No FastAPI BackgroundTasks in Flask
     )
 
     # If Gate 1 passed, trigger Gate 2 in a background thread
@@ -227,7 +226,7 @@ def review_submission_endpoint(submission_id: str) -> tuple:
     except ValueError:
         return jsonify({"detail": "Invalid submission ID"}), 400
 
-    body = ReviewDecisionRequest(**request.get_json(force=True))
+    body = ReviewDecisionRequest.model_validate(request.get_json(force=True) or {})
 
     try:
         result = review_submission(
@@ -255,7 +254,7 @@ def resubmit(display_id: str) -> tuple:
     current_user: dict[str, Any] = g.current_user
     user_id = uuid.UUID(current_user["user_id"])
 
-    body = ResubmitRequest(**request.get_json(force=True))
+    body = ResubmitRequest.model_validate(request.get_json(force=True) or {})
 
     try:
         result = resubmit_submission(
@@ -318,7 +317,7 @@ def create_skill_access_request(slug: str) -> tuple:
     user_id = uuid.UUID(current_user["user_id"])
     user_division = current_user.get("division", "")
 
-    body = AccessRequestCreateRequest(**request.get_json(force=True))
+    body = AccessRequestCreateRequest.model_validate(request.get_json(force=True) or {})
 
     try:
         result = create_access_request(
@@ -376,7 +375,7 @@ def review_access_request_endpoint(request_id: str) -> tuple:
     except ValueError:
         return jsonify({"detail": "Invalid request ID"}), 400
 
-    body = AccessRequestReviewRequest(**request.get_json(force=True))
+    body = AccessRequestReviewRequest.model_validate(request.get_json(force=True) or {})
 
     try:
         result = review_access_request(db, req_uuid, reviewer_id=reviewer_id, decision=body.decision)

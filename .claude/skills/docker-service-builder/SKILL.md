@@ -47,7 +47,7 @@ WORKDIR /app
 COPY apps/my-service/pyproject.toml .
 RUN pip install -e .[dev]
 COPY . .
-CMD ["uvicorn", "my_service.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8002", "my_service.main:create_app()"]
 ```
 
 ## References

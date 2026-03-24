@@ -5,7 +5,7 @@
 ```
 marketplace-ai/
   apps/
-    api/              # FastAPI backend (Python)
+    api/              # Flask/APIFlask backend (Python)
     web/              # React + Vite frontend (TypeScript)
     mcp-server/       # MCP server for Claude Code (Python)
   libs/

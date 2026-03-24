@@ -7,7 +7,7 @@
 ```
 marketplace-ai/
 ├── apps/
-│   ├── api/                # FastAPI backend (Python 3.12)
+│   ├── api/                # Flask/APIFlask backend (Python 3.12)
 │   │   ├── skillhub/       # App source (29 files)
 │   │   │   ├── routers/    # 8 route modules
 │   │   │   ├── services/   # 8 service modules
@@ -109,11 +109,11 @@ libs/db/skillhub_db/models/submission.py → Submission, GateResult, AccessReque
 
 ```
 apps/mcp-server/skillhub_mcp/server.py     → MCP tool registration (8 tools)
-apps/mcp-server/skillhub_mcp/api_client.py → HTTP client to FastAPI
+apps/mcp-server/skillhub_mcp/api_client.py → HTTP client to Flask API
 apps/mcp-server/skillhub_mcp/tools/        → install, search, get_skill, update, list_installed, fork, submit, status
 ```
 
-**Relationships**: Delegates all data ops to FastAPI. Division enforcement before local file writes. Powers Claude Code CLI integration.
+**Relationships**: Delegates all data ops to the Flask API. Division enforcement before local file writes. Powers Claude Code CLI integration.
 
 ---
 
@@ -180,12 +180,12 @@ mise.toml                                → 60+ tasks
 
 ```
 User Request → React SPA (apps/web)
-  → FastAPI (apps/api) via REST /api/v1/*
+  → Flask API (apps/api) via REST /api/v1/*
     → SQLAlchemy ORM → PostgreSQL 16
     → Redis 7 (cache, sessions)
 
 Claude Code → MCP Server (apps/mcp-server)
-  → FastAPI (apps/api) via internal REST
+  → Flask API (apps/api) via internal REST
     → PostgreSQL 16
 
 Submission → Gate 1 (schema) → Gate 2 (LLM/Bedrock) → Gate 3 (human) → Published Skill

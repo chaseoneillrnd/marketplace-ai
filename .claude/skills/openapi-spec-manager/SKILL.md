@@ -8,7 +8,7 @@ description: Use when generating or managing the OpenAPI spec and TypeScript typ
 ## Generate
 
 ```bash
-mise run gen:openapi    # FastAPI → specs/openapi.json
+mise run gen:openapi    # Flask/APIFlask → specs/openapi.json
 mise run gen:types      # openapi.json → libs/shared-types/src/api.generated.ts
 ```
 

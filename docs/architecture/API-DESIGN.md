@@ -1,6 +1,6 @@
 # API Design
 
-FastAPI backend at `apps/api/`. Runs on port 8000.
+Flask/APIFlask backend at `apps/api/`. Runs on port 8000.
 
 ## REST Conventions
 
@@ -63,7 +63,7 @@ graph TD
     ST -->|false| F
 ```
 
-Three auth levels via FastAPI `Depends()`:
+Three auth levels enforced via `before_request` and `g.current_user`:
 1. `get_current_user` — any authenticated user
 2. `require_platform_team` — chains `get_current_user`, checks `is_platform_team`
 3. `require_security_team` — chains `get_current_user`, checks `is_security_team`

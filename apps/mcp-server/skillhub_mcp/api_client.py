@@ -1,4 +1,4 @@
-"""HTTP client for communicating with the SkillHub FastAPI backend."""
+"""HTTP client for communicating with the SkillHub Flask/APIFlask backend."""
 
 from __future__ import annotations
 

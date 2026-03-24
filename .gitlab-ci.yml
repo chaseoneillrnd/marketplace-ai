@@ -10,7 +10,7 @@ variables:
   NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.cache/npm"
 
 .python_base:
-  image: python:3.11-slim
+  image: python:3.12-slim
   before_script:
     - pip install -e apps/api[dev] -e libs/db[dev] -e libs/python-common[dev]
   variables:
@@ -54,7 +54,7 @@ test:api:
     POSTGRES_PASSWORD: skillhub
     POSTGRES_DB: skillhub
   script:
-    - python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
+    - python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov=apps/api/skillhub_flask --cov-fail-under=80
 
 test:web:
   stage: test
@@ -81,7 +81,7 @@ typecheck:python:
   stage: typecheck
   extends: .python_base
   script:
-    - mypy apps/api/skillhub/ --strict
+    - mypy apps/api/skillhub/ apps/api/skillhub_flask/ --strict
 
 typecheck:typescript:
   stage: typecheck
@@ -115,7 +115,7 @@ sast:
   extends: .python_base
   script:
     - pip install bandit
-    - bandit -r apps/api/skillhub/ -f json -o bandit-report.json || true
+    - bandit -r apps/api/skillhub/ apps/api/skillhub_flask/ -f json -o bandit-report.json || true
   artifacts:
     paths:
       - bandit-report.json

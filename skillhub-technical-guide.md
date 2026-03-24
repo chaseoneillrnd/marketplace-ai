@@ -513,7 +513,7 @@ Requirements:
 - apps/api/skillhub/routers/health.py: GET /health → {status, version}
 - PYTHONPATH must include /libs so skillhub_db is importable
 - apps/api/pyproject.toml dependencies:
-    fastapi>=0.111, uvicorn[standard], pydantic-settings,
+    apiflask>=1.3, gunicorn, pydantic-settings,
     sqlalchemy>=2.0, pyjwt, psycopg2-binary, alembic
 
 Write tests FIRST for:

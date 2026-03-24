@@ -305,12 +305,8 @@ def create_submission(
     content: str,
     declared_divisions: list[str],
     division_justification: str,
-    background_tasks: Any | None = None,
 ) -> dict[str, Any]:
     """Create a new submission and run Gate 1 synchronously.
-
-    If Gate 1 passes and llm_judge_enabled flag is True, enqueues Gate 2
-    as a background task (when background_tasks is provided).
 
     Returns dict with submission_id, display_id, status, gate1_result.
     """
@@ -365,14 +361,6 @@ def create_submission(
 
         db.commit()
         db.refresh(submission)
-
-        # Auto-trigger Gate 2 if Gate 1 passed and LLM judge is enabled
-        if gate1_result == GateResult.PASSED and background_tasks is not None:
-            from skillhub_db.models.flags import FeatureFlag
-
-            flag = db.query(FeatureFlag).filter(FeatureFlag.key == "llm_judge_enabled").first()
-            if flag and flag.enabled:
-                background_tasks.add_task(run_gate2_scan, db, submission.id)
 
         span.set_attribute("submissions.display_id", display_id)
         span.set_attribute("submissions.status", submission.status.value)
