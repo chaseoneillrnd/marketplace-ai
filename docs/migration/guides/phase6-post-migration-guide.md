@@ -70,9 +70,9 @@ Security:
 
 Existing Patterns:
   - Models live in libs/db/skillhub_db/models/
-  - Services live in apps/api/skillhub/services/
-  - Routers live in apps/api/skillhub/routers/
-  - Schemas live in apps/api/skillhub/schemas/
+  - Services live in apps/fast-api/skillhub/services/
+  - Routers live in apps/api/skillhub_flask/blueprints/
+  - Schemas live in apps/fast-api/skillhub/schemas/
   - Tests live in apps/api/tests/
   - React components live in apps/web/src/components/
   - React views live in apps/web/src/views/
@@ -84,6 +84,34 @@ Definition of Done (every prompt):
   - [ ] Acceptance criteria verified
   - [ ] No secrets in committed code
   - [ ] Existing tests still pass (no regressions)
+```
+
+### Flask-Specific Patterns (All New Routes Must Follow)
+
+```
+File locations:
+  - Models: libs/db/skillhub_db/models/
+  - Services: apps/fast-api/skillhub/services/ (shared via PYTHONPATH)
+  - Schemas: apps/fast-api/skillhub/schemas/ (shared via PYTHONPATH)
+  - Flask blueprints: apps/api/skillhub_flask/blueprints/
+  - Tests: apps/api/tests/
+  - PYTHONPATH: apps/api:apps/fast-api:libs/db:libs/python-common
+
+Validation decorators (use these, don't reinvent):
+  - validated_body(PydanticModel) — validates JSON body, returns 422 on failure
+  - validated_query(PydanticModel) — normalizes MultiDict for Pydantic, returns 422
+  - json_response(data, status=200) — handles model_dump(mode="json") + jsonify
+
+Auth patterns:
+  - g.current_user — set by before_request hook, always available in auth'd routes
+  - @require_platform_team — decorator for admin routes
+  - @require_security_team — decorator for security-team-only routes
+  - Blueprint-level before_request — use for auth-heavy blueprints (see review_queue.py)
+  - PUBLIC_ENDPOINTS — add endpoint names for any new public routes
+
+DB access:
+  - from skillhub_flask.db import get_db
+  - Background threads: use SessionLocal() directly, never scoped session proxy
 ```
 
 ---
@@ -233,7 +261,7 @@ logic, and content-hash delta detection.
 
 CONTEXT:
 - See Section 1 of phase6-post-migration-diagrams.md for the state machine.
-- Existing service: apps/api/skillhub/services/submissions.py
+- Existing service: apps/fast-api/skillhub/services/submissions.py
 - Existing audit helper: _write_audit() in that file
 - New model: SubmissionStateTransition (from Prompt A.1.1)
 - New Submission columns: revision_number, content_hash, change_request_flags,
@@ -325,12 +353,12 @@ Acceptance Criteria:
 Add API endpoints for resubmission and audit log retrieval.
 
 CONTEXT:
-- Existing router: apps/api/skillhub/routers/submissions.py
-- Existing schemas: apps/api/skillhub/schemas/submission.py
+- Existing router: apps/api/skillhub_flask/blueprints/submissions.py
+- Existing schemas: apps/fast-api/skillhub/schemas/submission.py
 - New service functions: resubmit_submission(), record_state_transition()
 
 Requirements:
-1. New schemas in apps/api/skillhub/schemas/submission.py:
+1. New schemas in apps/fast-api/skillhub/schemas/submission.py:
    - ResubmitRequest: content (str, required), name (str, optional),
      short_desc (str, optional)
    - StateTransitionResponse: action, actor_id, timestamp, state_before,
@@ -339,7 +367,7 @@ Requirements:
    - DiffResponse: display_id, revision_number, diff_hunks (list of strings),
      old_content_preview (str, first 500 chars), new_content_preview (str)
 
-2. New endpoints in apps/api/skillhub/routers/submissions.py:
+2. New endpoints in apps/api/skillhub_flask/blueprints/submissions.py:
    - POST /api/v1/submissions/{display_id}/resubmit
      Auth: submission owner only
      Body: ResubmitRequest
@@ -742,7 +770,7 @@ Implement the post-approval versioning flow: skill owners can submit version
 updates that go through the same gate pipeline.
 
 CONTEXT:
-- Existing: apps/api/skillhub/services/submissions.py (create_submission)
+- Existing: apps/fast-api/skillhub/services/submissions.py (create_submission)
 - Existing: libs/db/skillhub_db/models/skill.py (Skill, SkillVersion)
 - New columns: parent_submission_id, target_skill_id on Submission
 - New column: submission_id on SkillVersion
@@ -1615,12 +1643,17 @@ Acceptance Criteria:
 
 #### Prompt C.3.2 — LLM Judge live hints during editing
 
+> **Note:** The preview-scan endpoint (`POST /api/v1/submissions/preview-scan`) accepts
+> `{ content, name, category }` and returns LLM suggestions (category recommendation,
+> quality score, tagging hints) without creating a submission row. Rate-limited to
+> prevent abuse. This is NOT the same as the admin-only scan endpoint.
+
 ```
 Add live LLM judge feedback during skill editing (non-blocking hints,
 not a gate).
 
 CONTEXT:
-- Existing LLM judge service: apps/api/skillhub/services/llm_judge.py
+- Existing LLM judge service: apps/fast-api/skillhub/services/llm_judge.py
 - FrontMatterValidator already provides structural validation
 - LLM judge provides content quality feedback (different from structural)
 - Must be async with debounce — never block the editor
@@ -1743,6 +1776,22 @@ Acceptance Criteria:
 - [ ] All tests pass
 - [ ] 413/415/422 error codes correct
 ```
+
+---
+
+## 6.5 — New API Endpoints Summary
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /api/v1/submissions/{display_id}/resubmit | submission owner | Resubmit with updated content after change request |
+| GET | /api/v1/submissions/{display_id}/audit-log | owner or platform_team | Audit log of state transitions |
+| GET | /api/v1/submissions/{display_id}/diff | platform_team | Diff hunks for a specific revision |
+| POST | /api/v1/skills/{skill_id}/versions | skill owner or platform_team | Submit a version update for a published skill |
+| GET | /api/v1/skills/{skill_id}/versions | public (division-scoped) | List all versions of a skill |
+| POST | /api/v1/mcp/introspect | auth required | Introspect an MCP server URL for tools/resources |
+| POST | /api/v1/submissions/upload | auth required | Multipart .md file upload submission |
+| POST | /api/v1/submissions/preview-judge | auth required | LLM Judge live hints during editing |
+| POST | /api/v1/submissions/preview-scan | auth required | Stage C LLM Judge live assist — returns suggestions without creating a submission |
 
 ---
 
