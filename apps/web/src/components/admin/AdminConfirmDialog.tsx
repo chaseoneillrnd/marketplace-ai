@@ -27,6 +27,7 @@ export function AdminConfirmDialog({
       onClose={onCancel}
       title={title}
       width="420px"
+      data-testid="admin-confirm-dialog"
       footer={
         <>
           <button

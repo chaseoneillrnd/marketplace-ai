@@ -15,6 +15,8 @@ export interface ReviewQueueItem {
   content_preview: string;
   wait_time_hours: number;
   divisions: string[];
+  revision_number?: number;
+  status?: string;
 }
 
 export interface QueueResponse {

@@ -9,6 +9,7 @@ interface ModalShellProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: string;
+  'data-testid'?: string;
 }
 
 export function ModalShell({
@@ -18,6 +19,7 @@ export function ModalShell({
   children,
   footer,
   width = '480px',
+  'data-testid': testId,
 }: ModalShellProps) {
   const C = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -27,7 +29,7 @@ export function ModalShell({
 
   return (
     <div
-      data-testid="modal-shell-backdrop"
+      data-testid={testId ?? 'modal-shell-backdrop'}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-shell-title"

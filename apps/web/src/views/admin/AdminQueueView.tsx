@@ -3,15 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 import { useT } from '../../context/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useAdminQueue, type ReviewQueueItem } from '../../hooks/useAdminQueue';
+import { SubmissionCard } from '../../components/admin/SubmissionCard';
+import { AuditLogPanel } from '../../components/admin/AuditLogPanel';
+import { RequestChangesModal } from '../../components/admin/RequestChangesModal';
+import { RejectModal } from '../../components/admin/RejectModal';
 import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 
 const QUEUE_LIST_WIDTH = '380px';
 
-function getSLABadge(waitTimeHours: number): { label: string; color: string; bg: string } | null {
-  if (waitTimeHours > 48) return { label: 'SLA breached', color: '#ef5060', bg: 'rgba(239,80,96,0.10)' };
-  if (waitTimeHours >= 24) return { label: 'SLA at risk', color: '#f2a020', bg: 'rgba(242,160,32,0.10)' };
-  return null;
-}
+type DetailTab = 'details' | 'activity';
 
 export function AdminQueueView() {
   const C = useT();
@@ -22,11 +22,10 @@ export function AdminQueueView() {
   const [selectedId, setSelectedId] = useState<string | null>(
     searchParams.get('id'),
   );
-  const [confirmAction, setConfirmAction] = useState<{
-    type: 'approve' | 'reject' | 'request_changes';
-    item: ReviewQueueItem;
-  } | null>(null);
-  const [notesText, setNotesText] = useState('');
+  const [activeTab, setActiveTab] = useState<DetailTab>('details');
+  const [confirmApprove, setConfirmApprove] = useState<ReviewQueueItem | null>(null);
+  const [requestChangesItem, setRequestChangesItem] = useState<ReviewQueueItem | null>(null);
+  const [rejectItem, setRejectItem] = useState<ReviewQueueItem | null>(null);
 
   const items = data?.items ?? [];
   const selectedItem = items.find((i) => i.submission_id === selectedId) ?? null;
@@ -35,6 +34,7 @@ export function AdminQueueView() {
     (id: string) => {
       setSelectedId(id);
       setSearchParams({ id }, { replace: true });
+      setActiveTab('details');
     },
     [setSearchParams],
   );
@@ -59,14 +59,14 @@ export function AdminQueueView() {
         e.preventDefault();
         const isSelfSubmission = selectedItem.submitter_name === user?.name;
         if (!isSelfSubmission) {
-          setConfirmAction({ type: 'approve', item: selectedItem });
+          setConfirmApprove(selectedItem);
         }
       } else if ((e.key === 'r' || e.key === 'R') && selectedItem) {
         e.preventDefault();
-        setConfirmAction({ type: 'reject', item: selectedItem });
+        setRejectItem(selectedItem);
       } else if ((e.key === 'x' || e.key === 'X') && selectedItem) {
         e.preventDefault();
-        setConfirmAction({ type: 'request_changes', item: selectedItem });
+        setRequestChangesItem(selectedItem);
       }
     };
 
@@ -74,14 +74,37 @@ export function AdminQueueView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [items, selectedId, selectedItem, selectItem, user]);
 
-  const handleDecision = async (type: 'approve' | 'reject' | 'request_changes') => {
-    if (!confirmAction) return;
-    await decide(confirmAction.item.submission_id, type, notesText);
-    setConfirmAction(null);
-    setNotesText('');
+  const handleApprove = async () => {
+    if (!confirmApprove) return;
+    await decide(confirmApprove.submission_id, 'approve');
+    setConfirmApprove(null);
+  };
+
+  const handleReject = async (data: { reason: string; details: string }) => {
+    if (!rejectItem) return;
+    await decide(rejectItem.submission_id, 'reject', `${data.reason}: ${data.details}`);
+    setRejectItem(null);
+  };
+
+  const handleRequestChanges = async (data: { flags: string[]; notes: string }) => {
+    if (!requestChangesItem) return;
+    const notes = `Flags: ${data.flags.join(', ')}\n${data.notes}`;
+    await decide(requestChangesItem.submission_id, 'request_changes', notes);
+    setRequestChangesItem(null);
   };
 
   const isSelfSubmission = selectedItem?.submitter_name === user?.name;
+
+  const tabStyle = (tab: DetailTab): React.CSSProperties => ({
+    padding: '8px 16px',
+    fontSize: '13px',
+    fontWeight: 600,
+    border: 'none',
+    borderBottom: activeTab === tab ? `2px solid ${C.accent}` : '2px solid transparent',
+    background: 'transparent',
+    color: activeTab === tab ? C.text : C.muted,
+    cursor: 'pointer',
+  });
 
   return (
     <div>
@@ -113,63 +136,14 @@ export function AdminQueueView() {
               maxHeight: '70vh',
             }}
           >
-            {items.map((item) => {
-              const isSelected = item.submission_id === selectedId;
-              const slaBadge = getSLABadge(item.wait_time_hours);
-              return (
-                <button
-                  key={item.submission_id}
-                  onClick={() => selectItem(item.submission_id)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '14px 16px',
-                    background: isSelected ? C.accentDim : 'transparent',
-                    border: 'none',
-                    borderBottom: `1px solid ${C.border}`,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', color: C.text }}>
-                      {item.skill_name}
-                    </span>
-                    {slaBadge && (
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: '99px',
-                          background: slaBadge.bg,
-                          color: slaBadge.color,
-                        }}
-                      >
-                        {slaBadge.label}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 400, color: C.muted }}>
-                      {item.submitter_name ?? 'Unknown'}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        padding: '2px 8px',
-                        borderRadius: '99px',
-                        background: C.purpleDim,
-                        color: C.purple,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {item.category}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+            {items.map((item) => (
+              <SubmissionCard
+                key={item.submission_id}
+                item={item}
+                selected={item.submission_id === selectedId}
+                onClick={() => selectItem(item.submission_id)}
+              />
+            ))}
           </div>
 
           {/* Detail Panel */}
@@ -195,105 +169,130 @@ export function AdminQueueView() {
                   {selectedItem.short_desc}
                 </p>
 
-                {/* Content Preview */}
+                {/* Tabs */}
                 <div
                   style={{
-                    background: C.codeBg,
-                    padding: '16px',
-                    borderRadius: '10px',
-                    fontFamily: 'monospace',
-                    fontSize: '13px',
-                    color: C.text,
+                    display: 'flex',
+                    gap: '4px',
+                    borderBottom: `1px solid ${C.border}`,
                     marginBottom: '20px',
-                    whiteSpace: 'pre-wrap',
-                    overflowX: 'auto',
                   }}
                 >
-                  {selectedItem.content_preview}
+                  <button style={tabStyle('details')} onClick={() => setActiveTab('details')}>
+                    Details
+                  </button>
+                  <button style={tabStyle('activity')} onClick={() => setActiveTab('activity')}>
+                    Activity
+                  </button>
                 </div>
 
-                {/* Gate Results */}
-                <div style={{ marginBottom: '20px' }}>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.9px',
-                      color: C.dim,
-                      marginBottom: '8px',
-                    }}
-                  >
-                    Gate Results
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {activeTab === 'details' && (
+                  <>
+                    {/* Content Preview */}
                     <div
                       style={{
-                        padding: '8px 14px',
-                        borderRadius: '8px',
-                        background: selectedItem.gate1_passed ? C.greenDim : C.redDim,
-                        color: selectedItem.gate1_passed ? C.green : C.red,
-                        fontSize: '12px',
-                        fontWeight: 600,
+                        background: C.codeBg,
+                        padding: '16px',
+                        borderRadius: '10px',
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        color: C.text,
+                        marginBottom: '20px',
+                        whiteSpace: 'pre-wrap',
+                        overflowX: 'auto',
                       }}
                     >
-                      Gate 1: {selectedItem.gate1_passed ? 'Passed' : 'Failed'}
+                      {selectedItem.content_preview}
                     </div>
-                    {selectedItem.gate2_score !== null && (
+
+                    {/* Gate Results */}
+                    <div style={{ marginBottom: '20px' }}>
                       <div
                         style={{
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          background: C.accentDim,
-                          color: C.accent,
-                          fontSize: '12px',
+                          fontSize: '11px',
                           fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.9px',
+                          color: C.dim,
+                          marginBottom: '8px',
                         }}
                       >
-                        Gate 2: {selectedItem.gate2_score}/100
+                        Gate Results
                       </div>
-                    )}
-                  </div>
-                  {selectedItem.gate2_summary && (
-                    <p style={{ fontSize: '12px', color: C.muted, marginTop: '8px' }}>
-                      {selectedItem.gate2_summary}
-                    </p>
-                  )}
-                </div>
-
-                {/* Divisions */}
-                {selectedItem.divisions.length > 0 && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.9px',
-                        color: C.dim,
-                        marginBottom: '8px',
-                      }}
-                    >
-                      Divisions
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {selectedItem.divisions.map((div) => (
-                        <span
-                          key={div}
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <div
                           style={{
-                            padding: '4px 10px',
-                            borderRadius: '99px',
-                            background: C.purpleDim,
-                            color: C.purple,
-                            fontSize: '11px',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            background: selectedItem.gate1_passed ? C.greenDim : C.redDim,
+                            color: selectedItem.gate1_passed ? C.green : C.red,
+                            fontSize: '12px',
                             fontWeight: 600,
                           }}
                         >
-                          {div}
-                        </span>
-                      ))}
+                          Gate 1: {selectedItem.gate1_passed ? 'Passed' : 'Failed'}
+                        </div>
+                        {selectedItem.gate2_score !== null && (
+                          <div
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '8px',
+                              background: C.accentDim,
+                              color: C.accent,
+                              fontSize: '12px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Gate 2: {selectedItem.gate2_score}/100
+                          </div>
+                        )}
+                      </div>
+                      {selectedItem.gate2_summary && (
+                        <p style={{ fontSize: '12px', color: C.muted, marginTop: '8px' }}>
+                          {selectedItem.gate2_summary}
+                        </p>
+                      )}
                     </div>
-                  </div>
+
+                    {/* Divisions */}
+                    {selectedItem.divisions.length > 0 && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.9px',
+                            color: C.dim,
+                            marginBottom: '8px',
+                          }}
+                        >
+                          Divisions
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {selectedItem.divisions.map((div) => (
+                            <span
+                              key={div}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '99px',
+                                background: C.purpleDim,
+                                color: C.purple,
+                                fontSize: '11px',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {div}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeTab === 'activity' && (
+                  <AuditLogPanel displayId={selectedItem.display_id} />
                 )}
 
                 {/* Action Buttons */}
@@ -310,7 +309,7 @@ export function AdminQueueView() {
                     title={isSelfSubmission ? 'Cannot approve your own submission' : undefined}
                     onClick={() => {
                       if (isSelfSubmission) return;
-                      setConfirmAction({ type: 'approve', item: selectedItem });
+                      setConfirmApprove(selectedItem);
                     }}
                     style={{
                       padding: '10px 20px',
@@ -327,9 +326,7 @@ export function AdminQueueView() {
                     Approve
                   </button>
                   <button
-                    onClick={() =>
-                      setConfirmAction({ type: 'reject', item: selectedItem })
-                    }
+                    onClick={() => setRejectItem(selectedItem)}
                     style={{
                       padding: '10px 20px',
                       borderRadius: '8px',
@@ -344,9 +341,7 @@ export function AdminQueueView() {
                     Reject
                   </button>
                   <button
-                    onClick={() =>
-                      setConfirmAction({ type: 'request_changes', item: selectedItem })
-                    }
+                    onClick={() => setRequestChangesItem(selectedItem)}
                     style={{
                       padding: '10px 20px',
                       borderRadius: '8px',
@@ -367,32 +362,33 @@ export function AdminQueueView() {
         </div>
       )}
 
-      {/* Confirm Dialog */}
-      {confirmAction && (
+      {/* Approve Confirm Dialog */}
+      {confirmApprove && (
         <AdminConfirmDialog
-          title={
-            confirmAction.type === 'approve'
-              ? 'Approve Submission'
-              : confirmAction.type === 'reject'
-                ? 'Reject Submission'
-                : 'Request Changes'
-          }
-          message={`Are you sure you want to ${confirmAction.type.replace('_', ' ')} "${confirmAction.item.skill_name}"?`}
-          confirmLabel={
-            confirmAction.type === 'approve'
-              ? 'Approve'
-              : confirmAction.type === 'reject'
-                ? 'Reject'
-                : 'Request Changes'
-          }
-          destructive={confirmAction.type === 'reject'}
-          onConfirm={() => handleDecision(confirmAction.type)}
-          onCancel={() => {
-            setConfirmAction(null);
-            setNotesText('');
-          }}
+          title="Approve Submission"
+          message={`Are you sure you want to approve "${confirmApprove.skill_name}"?`}
+          confirmLabel="Approve"
+          destructive={false}
+          onConfirm={handleApprove}
+          onCancel={() => setConfirmApprove(null)}
         />
       )}
+
+      {/* Reject Modal */}
+      <RejectModal
+        open={rejectItem !== null}
+        onClose={() => setRejectItem(null)}
+        onSubmit={handleReject}
+        submissionName={rejectItem?.skill_name ?? ''}
+      />
+
+      {/* Request Changes Modal */}
+      <RequestChangesModal
+        open={requestChangesItem !== null}
+        onClose={() => setRequestChangesItem(null)}
+        onSubmit={handleRequestChanges}
+        submissionName={requestChangesItem?.skill_name ?? ''}
+      />
     </div>
   );
 }
