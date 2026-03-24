@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { icon: '\u{1F4DD}', label: 'Queue', to: '/admin/queue' },
   { icon: '\u{1F4AC}', label: 'Feedback', to: '/admin/feedback' },
   { icon: '\u2699', label: 'Skills', to: '/admin/skills' },
+  { icon: '\u{1F3F3}', label: 'Feature Flags', to: '/admin/flags' },
   { icon: '\u{1F5FA}', label: 'Roadmap', to: '/admin/roadmap' },
   { icon: '\u2193', label: 'Export', to: '/admin/export' },
 ];

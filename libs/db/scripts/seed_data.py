@@ -38,6 +38,12 @@ FEATURE_FLAGS = [
     ("featured_skills_v2", False, "Enable v2 featured skills layout"),
     ("gamification_enabled", False, "Enable gamification features"),
     ("mcp_install_enabled", True, "Enable MCP install method"),
+    ("submission.llm_judge_gate2", True, "Enable LLM Judge for Gate 2 evaluation"),
+    ("hitl.revision_tracking", False, "Enable revision tracking in HITL queue"),
+    ("hitl.change_request_flags", False, "Enable structured change request flags"),
+    ("submission.mcp_mode", False, "Enable MCP sync submission mode"),
+    ("submission.llm_live_assist", False, "Enable LLM Judge live assist during submission"),
+    ("docs.vitepress_portal", False, "Enable VitePress documentation portal"),
 ]
 
 # ---------------------------------------------------------------------------

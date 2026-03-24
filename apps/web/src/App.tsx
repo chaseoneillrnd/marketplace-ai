@@ -27,6 +27,9 @@ const AdminFeedbackView = lazy(() =>
 const AdminSkillsView = lazy(() =>
   import('./views/admin/AdminSkillsView').then((m) => ({ default: m.AdminSkillsView })),
 );
+const AdminFlagsView = lazy(() =>
+  import('./views/admin/AdminFlagsView').then((m) => ({ default: m.AdminFlagsView })),
+);
 const AdminRoadmapView = lazy(() =>
   import('./views/admin/AdminRoadmapView').then((m) => ({ default: m.AdminRoadmapView })),
 );
@@ -104,6 +107,7 @@ function AppShell() {
               <Route path="queue" element={<AdminQueueView />} />
               <Route path="feedback" element={<AdminFeedbackView />} />
               <Route path="skills" element={<AdminSkillsView />} />
+              <Route path="flags" element={<AdminFlagsView />} />
               <Route path="roadmap" element={<AdminRoadmapView />} />
               <Route path="export" element={<AdminExportView />} />
             </Route>

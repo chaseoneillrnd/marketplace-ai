@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
+from uuid import UUID
 
 from opentelemetry import trace
+from skillhub_db.models.audit import AuditLog
 from skillhub_db.models.flags import FeatureFlag
 from sqlalchemy.orm import Session
 
@@ -31,6 +34,13 @@ def get_flags(db: Session, *, user_division: str | None = None) -> dict[str, boo
         return result
 
 
+def get_flags_admin(db: Session) -> list[dict[str, Any]]:
+    """Return all flags with full details for admin view."""
+    with tracer.start_as_current_span("service.flags.get_flags_admin"):
+        flags = db.query(FeatureFlag).order_by(FeatureFlag.key).all()
+        return [_flag_to_dict(flag) for flag in flags]
+
+
 def create_flag(
     db: Session,
     key: str,
@@ -38,6 +48,7 @@ def create_flag(
     enabled: bool = True,
     description: str | None = None,
     division_overrides: dict[str, bool] | None = None,
+    actor_id: UUID | None = None,
 ) -> dict[str, Any]:
     """Create a new feature flag. Raises ValueError if key already exists."""
     existing = db.query(FeatureFlag).filter(FeatureFlag.key == key).first()
@@ -54,6 +65,17 @@ def create_flag(
     db.commit()
     db.refresh(flag)
 
+    audit = AuditLog(
+        id=uuid.uuid4(),
+        event_type="flag.created",
+        actor_id=actor_id,
+        target_type="feature_flag",
+        target_id=key,
+        metadata_={"after": _flag_to_dict(flag)},
+    )
+    db.add(audit)
+    db.commit()
+
     return _flag_to_dict(flag)
 
 
@@ -64,11 +86,14 @@ def update_flag(
     enabled: bool | None = None,
     description: str | None = None,
     division_overrides: dict[str, bool] | None = None,
+    actor_id: UUID | None = None,
 ) -> dict[str, Any]:
     """Update an existing feature flag. Raises ValueError if not found."""
     flag = db.query(FeatureFlag).filter(FeatureFlag.key == key).first()
     if not flag:
         raise ValueError(f"Flag '{key}' not found")
+
+    before = _flag_to_dict(flag)
 
     if enabled is not None:
         flag.enabled = enabled
@@ -80,16 +105,40 @@ def update_flag(
     db.commit()
     db.refresh(flag)
 
-    return _flag_to_dict(flag)
+    after = _flag_to_dict(flag)
+    audit = AuditLog(
+        id=uuid.uuid4(),
+        event_type="flag.updated",
+        actor_id=actor_id,
+        target_type="feature_flag",
+        target_id=key,
+        metadata_={"before": before, "after": after},
+    )
+    db.add(audit)
+    db.commit()
+
+    return after
 
 
-def delete_flag(db: Session, key: str) -> None:
+def delete_flag(db: Session, key: str, *, actor_id: UUID | None = None) -> None:
     """Delete a feature flag. Raises ValueError if not found."""
     flag = db.query(FeatureFlag).filter(FeatureFlag.key == key).first()
     if not flag:
         raise ValueError(f"Flag '{key}' not found")
 
+    before = _flag_to_dict(flag)
     db.delete(flag)
+    db.commit()
+
+    audit = AuditLog(
+        id=uuid.uuid4(),
+        event_type="flag.deleted",
+        actor_id=actor_id,
+        target_type="feature_flag",
+        target_id=key,
+        metadata_={"before": before},
+    )
+    db.add(audit)
     db.commit()
 
 
