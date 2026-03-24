@@ -67,7 +67,7 @@ env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 [tasks."test:mcp"]
 description = "Run MCP server tests"
 run = "python -m pytest apps/mcp-server/tests/ -v"
-env = { PYTHONPATH = "apps/mcp-server:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }
 
 [tasks."test:db"]
 description = "Run DB lib tests"
@@ -541,12 +541,12 @@ env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 # ─── Development Workflow Tasks ───────────────────────────────────────────────
 
 [tasks."dev:all"]
-description = "Start all dev servers (api + web + mcp) in background"
+description = "Start all dev servers (api + web + mcp + docs) in background"
 run = """
 echo "=== Starting all dev servers ==="
 
 # Kill any processes occupying required ports
-for port in 8000 5173 8001; do
+for port in 8000 5173 5174 8001; do
   pids=$(lsof -ti :$port 2>/dev/null || true)
   if [ -n "$pids" ]; then
     echo "  Killing process(es) on port $port: $pids"
@@ -561,16 +561,20 @@ API_PID=$!
 WEB_PID=$!
 (cd apps/mcp-server && python -m skillhub_mcp.server) </dev/null &
 MCP_PID=$!
+(cd apps/docs && npx vitepress dev src --port 5174) </dev/null &
+DOCS_PID=$!
 echo ""
-echo "  API server PID: $API_PID (port 8000)"
-echo "  Web server PID: $WEB_PID"
-echo "  MCP server PID: $MCP_PID"
+echo "  API server PID:  $API_PID (port 8000)"
+echo "  Web server PID:  $WEB_PID (port 5173)"
+echo "  Docs server PID: $DOCS_PID (port 5174)"
+echo "  MCP server PID:  $MCP_PID"
 echo ""
 echo "  Run 'mise run dev:stop' to stop all servers"
 echo ""
 echo "$API_PID" > .dev-pids
 echo "$WEB_PID" >> .dev-pids
 echo "$MCP_PID" >> .dev-pids
+echo "$DOCS_PID" >> .dev-pids
 wait
 """
 env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }

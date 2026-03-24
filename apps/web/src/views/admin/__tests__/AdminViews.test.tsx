@@ -40,6 +40,48 @@ vi.mock('../../../lib/api', () => ({
   },
 }));
 
+vi.mock('../../../hooks/useAdminDashboard', () => ({
+  useAdminDashboard: () => ({
+    summary: {
+      dau: 0,
+      new_installs_7d: 0,
+      active_installs: 0,
+      published_skills: 0,
+      pending_reviews: 0,
+      submission_pass_rate: 0,
+      period: '7d',
+    },
+    timeSeries: [],
+    funnel: {
+      submitted: 0,
+      gate1_passed: 0,
+      gate2_passed: 0,
+      approved: 0,
+      published: 0,
+    },
+    topSkills: [],
+    divisionData: {},
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../hooks/useAdminSkills', () => ({
+  useAdminSkills: () => ({
+    skills: [],
+    total: 0,
+    page: 1,
+    loading: false,
+    error: null,
+    featureSkill: vi.fn(),
+    deprecateSkill: vi.fn(),
+    removeSkill: vi.fn(),
+    setPage: vi.fn(),
+    setSearch: vi.fn(),
+  }),
+}));
+
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <MemoryRouter>
@@ -97,9 +139,14 @@ describe('AdminSkillsView', () => {
     expect(screen.getByRole('heading', { name: /skills/i })).toBeInTheDocument();
   });
 
-  it('renders Coming soon text', () => {
+  it('renders search input', () => {
     render(<AdminSkillsView />, { wrapper });
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getByTestId('skills-search-input')).toBeInTheDocument();
+  });
+
+  it('renders empty state when no skills', () => {
+    render(<AdminSkillsView />, { wrapper });
+    expect(screen.getByText('No skills found.')).toBeInTheDocument();
   });
 });
 

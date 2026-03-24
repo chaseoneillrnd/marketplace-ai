@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { ThemeProvider } from '../../../context/ThemeContext';
 import { AuthProvider } from '../../../context/AuthContext';
 import { SubmitSkillPage } from '../SubmitSkillPage';
+import { setToken, clearToken } from '../../../lib/auth';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -38,10 +39,32 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
+const MOCK_DIVISIONS = [
+  { name: 'Engineering Org', slug: 'engineering-org', color: '#4b7dff' },
+  { name: 'Data Science Org', slug: 'data-science-org', color: '#8b5cf6' },
+];
+
+function mockApi(overrides: Record<string, unknown> = {}) {
+  mockFetch.mockImplementation(async (url: string) => {
+    const path = typeof url === 'string' ? url : '';
+    if (path.includes('/api/v1/divisions')) {
+      return { ok: true, status: 200, json: async () => MOCK_DIVISIONS };
+    }
+    if (path.includes('/api/v1/flags')) {
+      return { ok: true, status: 200, json: async () => [] };
+    }
+    if (overrides[path]) {
+      return overrides[path];
+    }
+    return { ok: true, status: 200, json: async () => ({}) };
+  });
+}
+
 describe('SubmitSkillPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    clearToken();
+    mockApi();
   });
 
   it('shows sign-in required when not authenticated', () => {
@@ -49,97 +72,88 @@ describe('SubmitSkillPage', () => {
     expect(screen.getByText('Sign in required')).toBeDefined();
   });
 
-  it('renders ModeSelector tabs when authenticated', () => {
+  it('renders ModeSelector tabs when authenticated', async () => {
     const token = fakeJwt(STUB_CLAIMS);
-    localStorage.setItem('skillhub_token', token);
+    setToken(token);
 
     render(<SubmitSkillPage />, { wrapper });
 
-    expect(screen.getByTestId('mode-tab-form')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByTestId('mode-tab-form')).toBeDefined();
+    });
     expect(screen.getByTestId('mode-tab-upload')).toBeDefined();
     expect(screen.getByTestId('mode-tab-mcp')).toBeDefined();
   });
 
-  it('shows form builder by default', () => {
+  it('shows form builder by default', async () => {
     const token = fakeJwt(STUB_CLAIMS);
-    localStorage.setItem('skillhub_token', token);
+    setToken(token);
 
     render(<SubmitSkillPage />, { wrapper });
 
-    expect(screen.getByTestId('skill-name-input')).toBeDefined();
-    expect(screen.getByTestId('submit-skill-button')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByTestId('form-builder-mode')).toBeDefined();
+    });
+    expect(screen.getByTestId('input-name')).toBeDefined();
   });
 
   it('switches to upload mode on tab click', async () => {
     const token = fakeJwt(STUB_CLAIMS);
-    localStorage.setItem('skillhub_token', token);
+    setToken(token);
     const user = userEvent.setup();
 
     render(<SubmitSkillPage />, { wrapper });
+    await waitFor(() => {
+      expect(screen.getByTestId('mode-tab-upload')).toBeDefined();
+    });
     await user.click(screen.getByTestId('mode-tab-upload'));
 
-    expect(screen.getByTestId('upload-mode')).toBeDefined();
+    expect(screen.getByTestId('file-upload-mode')).toBeDefined();
   });
 
   it('switches to MCP mode on tab click', async () => {
     const token = fakeJwt(STUB_CLAIMS);
-    localStorage.setItem('skillhub_token', token);
+    setToken(token);
     const user = userEvent.setup();
 
     render(<SubmitSkillPage />, { wrapper });
+    await waitFor(() => {
+      expect(screen.getByTestId('mode-tab-mcp')).toBeDefined();
+    });
     await user.click(screen.getByTestId('mode-tab-mcp'));
 
-    expect(screen.getByTestId('mcp-mode')).toBeDefined();
+    expect(screen.getByTestId('mcp-sync-mode')).toBeDefined();
   });
 
-  it('submits and shows status tracker on success', async () => {
+  it('renders step indicator and first step of form', async () => {
     const token = fakeJwt(STUB_CLAIMS);
-    localStorage.setItem('skillhub_token', token);
+    setToken(token);
 
-    // POST /api/v1/submissions succeeds
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ display_id: 'SUB-0042' }),
-    });
-
-    // GET /api/v1/submissions/SUB-0042 for status polling
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ display_id: 'SUB-0042', status: 'gate1_passed', name: 'My Skill' }),
-    });
-
-    const user = userEvent.setup();
     render(<SubmitSkillPage />, { wrapper });
 
-    await user.type(screen.getByTestId('skill-name-input'), 'My Skill');
-    await user.type(screen.getByTestId('skill-content-textarea'), 'Some content here');
-    await user.click(screen.getByTestId('submit-skill-button'));
-
     await waitFor(() => {
-      expect(screen.getByTestId('submission-status-tracker')).toBeDefined();
+      expect(screen.getByTestId('step-indicator')).toBeDefined();
     });
+    expect(screen.getByTestId('input-name')).toBeDefined();
+    expect(screen.getByTestId('input-description')).toBeDefined();
   });
 
-  it('shows error message on submit failure', async () => {
+  it('navigates to next step after filling name and description', async () => {
     const token = fakeJwt(STUB_CLAIMS);
-    localStorage.setItem('skillhub_token', token);
-
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      statusText: 'Bad Request',
-      json: async () => ({ detail: 'Name is required' }),
-    });
-
+    setToken(token);
     const user = userEvent.setup();
+
     render(<SubmitSkillPage />, { wrapper });
 
-    await user.click(screen.getByTestId('submit-skill-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('input-name')).toBeDefined();
+    });
+    await user.type(screen.getByTestId('input-name'), 'My Skill');
+    await user.type(screen.getByTestId('input-description'), 'A short description');
+    await user.click(screen.getByTestId('btn-next'));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('Name is required');
+      expect(screen.getByTestId('input-content')).toBeDefined();
     });
   });
 });

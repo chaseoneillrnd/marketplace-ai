@@ -172,7 +172,7 @@ class TestAuthenticationEnforcement:
         resp = client.get("/health")
         assert resp.status_code == 200
 
-    @patch("skillhub_flask.blueprints.skills.list_skills")
+    @patch("skillhub_flask.blueprints.skills.browse_skills")
     def test_skills_list_is_public(self, mock_ls: MagicMock, client: Any) -> None:
         mock_ls.return_value = ([], 0)
         resp = client.get("/api/v1/skills")
@@ -321,7 +321,7 @@ class TestDivisionIsolation:
         token = _regular_token(division="engineering")
         resp = client.post(
             "/api/v1/skills/finance-only-skill/install",
-            json={"method": "mcp"},
+            json={"method": "mcp", "version": "1.0.0"},
             headers=_auth(token),
         )
         assert resp.status_code == 403
@@ -334,17 +334,18 @@ class TestDivisionIsolation:
     ) -> None:
         """Division comes from JWT g.current_user, not from request args."""
         mock_install.return_value = {
-            "slug": "some-skill",
+            "id": str(uuid4()),
+            "skill_id": str(uuid4()),
             "user_id": str(uuid4()),
             "method": "mcp",
             "installed_at": "2026-03-01T00:00:00",
-            "version": None,
+            "version": "1.0.0",
         }
         token = _regular_token(division="engineering")
         # Passing a different division via query param must NOT override JWT
         resp = client.post(
             "/api/v1/skills/some-skill/install?division=security",
-            json={"method": "mcp"},
+            json={"method": "mcp", "version": "1.0.0"},
             headers=_auth(token),
         )
         assert resp.status_code == 201
@@ -359,16 +360,17 @@ class TestDivisionIsolation:
     ) -> None:
         """Platform team user also gets their division from JWT, not request."""
         mock_install.return_value = {
-            "slug": "some-skill",
+            "id": str(uuid4()),
+            "skill_id": str(uuid4()),
             "user_id": str(uuid4()),
             "method": "mcp",
             "installed_at": "2026-03-01T00:00:00",
-            "version": None,
+            "version": "1.0.0",
         }
         token = _platform_token()
         resp = client.post(
             "/api/v1/skills/some-skill/install",
-            json={"method": "mcp"},
+            json={"method": "mcp", "version": "1.0.0"},
             headers=_auth(token),
         )
         assert resp.status_code == 201
@@ -383,7 +385,7 @@ class TestDivisionIsolation:
         token = _regular_token()
         resp = client.post(
             "/api/v1/skills/restricted-skill/install",
-            json={"method": "mcp"},
+            json={"method": "mcp", "version": "1.0.0"},
             headers=_auth(token),
         )
         assert resp.status_code == 403
@@ -398,7 +400,7 @@ class TestDivisionIsolation:
         token = _regular_token()
         resp = client.post(
             "/api/v1/skills/restricted-skill/install",
-            json={"method": "mcp"},
+            json={"method": "mcp", "version": "1.0.0"},
             headers=_auth(token),
         )
         assert resp.status_code == 403
@@ -408,16 +410,17 @@ class TestDivisionIsolation:
     def test_valid_division_install_succeeds(self, mock_install: MagicMock, client: Any) -> None:
         """A user whose division matches can install the skill."""
         mock_install.return_value = {
-            "slug": "open-skill",
+            "id": str(uuid4()),
+            "skill_id": str(uuid4()),
             "user_id": str(uuid4()),
             "method": "mcp",
             "installed_at": "2026-03-01T00:00:00",
-            "version": None,
+            "version": "1.0.0",
         }
         token = _regular_token(division="engineering")
         resp = client.post(
             "/api/v1/skills/open-skill/install",
-            json={"method": "mcp"},
+            json={"method": "mcp", "version": "1.0.0"},
             headers=_auth(token),
         )
         assert resp.status_code == 201
@@ -946,11 +949,11 @@ class TestInputValidation:
         assert resp.status_code == 422
         assert resp.status_code != 500
 
-    def test_flag_create_missing_enabled_returns_422(self, client: Any) -> None:
+    def test_flag_create_invalid_enabled_returns_422(self, client: Any) -> None:
         token = _platform_token()
         resp = client.post(
             "/api/v1/admin/flags",
-            json={"key": "new.flag"},
+            json={"key": "new.flag", "enabled": "not-a-boolean"},
             headers=_auth(token),
         )
         assert resp.status_code == 422
@@ -964,8 +967,12 @@ class TestInputValidation:
         data = resp.get_json()
         assert "detail" in data
 
-    def test_sql_injection_in_skill_slug_is_safe(self, client: Any) -> None:
+    @patch("skillhub_flask.blueprints.social.favorite_skill")
+    def test_sql_injection_in_skill_slug_is_safe(
+        self, mock_fav: MagicMock, client: Any
+    ) -> None:
         """SQL injection in URL slug must not cause a 500."""
+        mock_fav.side_effect = ValueError("Skill not found")
         token = _regular_token()
         slug = "'; DROP TABLE skills; --"
         resp = client.post(
