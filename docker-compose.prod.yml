@@ -5,7 +5,7 @@ services:
       dockerfile: apps/api/Dockerfile
       target: production
     volumes: []
-    command: uvicorn skillhub.main:app --host 0.0.0.0 --port 8000 --workers 4
+    command: flask --app skillhub_flask.app:create_app run --host 0.0.0.0 --port 8000
 
   mcp-server:
     build:

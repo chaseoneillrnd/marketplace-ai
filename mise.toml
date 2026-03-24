@@ -19,7 +19,7 @@ run = "npx nx run web:dev"
 [tasks."dev:api"]
 description = "Start API server"
 run = "flask --app skillhub_flask.app:create_app run --reload --host 0.0.0.0 --port 8000"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common", FLASK_DEBUG = "1" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common", FLASK_DEBUG = "1" }
 
 [tasks."dev:mcp"]
 description = "Start MCP server"
@@ -58,12 +58,12 @@ run = "npx vitest run --coverage --project web"
 [tasks."test:api"]
 description = "Run API tests"
 run = "python -m pytest apps/api/tests/ -v"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."test:api:coverage"]
 description = "Run API tests with coverage"
 run = "python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."test:mcp"]
 description = "Run MCP server tests"
@@ -122,7 +122,7 @@ run = "npx tsc --noEmit -p apps/web/tsconfig.json"
 [tasks."typecheck:api"]
 description = "Python type check"
 run = "mypy apps/api/skillhub/ --strict"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Database ──────────────────────────────────────────────────────────────────
 
@@ -188,7 +188,7 @@ run = "docker compose exec postgres pg_dump -U skillhub -d skillhub --schema-onl
 [tasks."gen:openapi"]
 description = "Generate OpenAPI spec"
 run = "python -c \"from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))\" > specs/openapi.json"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."gen:types"]
 description = "Generate TypeScript types from OpenAPI"
@@ -243,7 +243,7 @@ echo "=== TypeScript Check ==="
 npx tsc --noEmit -p apps/web/tsconfig.json
 echo "=== Quality gate complete ==="
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."quality-gate:api"]
 description = "API-only quality gate"
@@ -253,7 +253,7 @@ ruff format --check apps/api/
 mypy apps/api/skillhub/ --strict
 python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."quality-gate:web"]
 description = "Web-only quality gate"
@@ -433,7 +433,7 @@ echo "=== TypeScript Type Check ==="
 npx tsc --noEmit -p apps/web/tsconfig.json
 echo "=== All type checks complete ==="
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Utility Tasks ────────────────────────────────────────────────────────────
 
@@ -519,7 +519,7 @@ run = """
 echo "=== Generating Docs Artifacts ==="
 echo ""
 echo "--- OpenAPI spec ---"
-python -c "from skillhub.main import create_app; import json; app=create_app(); print(json.dumps(app.openapi(), indent=2))" > specs/openapi.json
+python -c "from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))" > specs/openapi.json
 echo "  Written to specs/openapi.json"
 echo ""
 echo "--- Schema dump ---"
@@ -532,7 +532,7 @@ echo "  Written to libs/shared-types/src/api.generated.ts"
 echo ""
 echo "Docs generation complete."
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Development Workflow Tasks ───────────────────────────────────────────────
 
@@ -551,7 +551,7 @@ for port in 8000 5173 8001; do
   fi
 done
 
-uvicorn skillhub.main:app --reload --host 0.0.0.0 --port 8000 --app-dir apps/api </dev/null &
+flask --app skillhub_flask.app:create_app run --reload --host 0.0.0.0 --port 8000 </dev/null &
 API_PID=$!
 (cd apps/web && npx vite) </dev/null &
 WEB_PID=$!
@@ -585,7 +585,7 @@ if [ -f .dev-pids ]; then
   echo "All dev servers stopped."
 else
   echo "No .dev-pids file found. Attempting to kill known processes..."
-  pkill -f "uvicorn skillhub.main:app" 2>/dev/null && echo "  Stopped API server" || true
+  pkill -f "flask.*skillhub_flask" 2>/dev/null && echo "  Stopped API server" || true
   pkill -f "skillhub_mcp.server" 2>/dev/null && echo "  Stopped MCP server" || true
   echo "Done."
 fi
@@ -606,7 +606,7 @@ run = """
 echo "=== Smoke Test ==="
 echo ""
 echo "Starting API server..."
-uvicorn skillhub.main:app --host 0.0.0.0 --port 8000 --app-dir apps/api &
+flask --app skillhub_flask.app:create_app run --host 0.0.0.0 --port 8000 &
 API_PID=$!
 sleep 3
 
@@ -622,7 +622,7 @@ else
   exit 1
 fi
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Tracing ──────────────────────────────────────────────────────────────────
 

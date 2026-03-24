@@ -243,7 +243,7 @@ async def run_gate2_scan(
                 skipped=True,
             )
         else:
-            from skillhub.config import Settings
+            from skillhub_flask.config import Settings
 
             settings = Settings()
             judge = LLMJudgeService(

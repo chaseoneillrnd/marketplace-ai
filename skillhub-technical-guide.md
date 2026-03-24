@@ -35,7 +35,7 @@
 1. [Global Standards](#global-standards)
 2. [Stage 0 — Monorepo Scaffold](#stage-0)
 3. [Stage 1 — Database Foundation](#stage-1)
-4. [Stage 2 — FastAPI Core](#stage-2)
+4. [Stage 2 — Flask/APIFlask Core](#stage-2)
 5. [Stage 3 — Skills API](#stage-3)
 6. [Stage 4 — Auth & Users](#stage-4)
 7. [Stage 5 — Social Layer](#stage-5)
@@ -68,7 +68,7 @@ Testing:
 Security:
   - No secrets in code — all via Settings (pydantic-settings)
   - JWT: decode before trusting, never trust raw claims without verification
-  - Division enforcement happens in FastAPI — never client-side
+  - Division enforcement happens in Flask (before_request) — never client-side
   - audit_log: append-only, no UPDATE/DELETE from application code
 
 Definition of Done (every prompt):
@@ -490,11 +490,11 @@ Acceptance Criteria:
 
 ---
 
-## Stage 2 — FastAPI Core
+## Stage 2 — Flask/APIFlask Core
 
 > 📊 See Section 3 of skillhub-diagrams.md for API request flow diagram.
 
-**Goal:** FastAPI app factory running, health endpoint live, stub auth working, Swagger at /docs.
+**Goal:** Flask/APIFlask app factory running, health endpoint live, stub auth working, Swagger at /docs.
 
 ---
 
@@ -503,7 +503,7 @@ Acceptance Criteria:
 #### Prompt 2.1.1 — config, main, dependencies
 
 ```
-Create the FastAPI application scaffold.
+Create the Flask/APIFlask application scaffold.
 
 Requirements:
 - apps/api/skillhub/config.py: Pydantic Settings — verbatim from design doc section 4e
@@ -518,7 +518,7 @@ Requirements:
 
 Write tests FIRST for:
 - GET /health returns 200 {status: ok, version: 1.0.0}
-- create_app() returns FastAPI instance
+- create_app() returns Flask/APIFlask instance
 - get_current_user raises 401 on missing token
 - get_current_user raises 401 on expired token
 - get_current_user raises 401 on invalid token
@@ -1015,7 +1015,7 @@ Requirements:
 - apps/mcp-server/skillhub_mcp/server.py: MCP app using Python mcp SDK
   - Registers all 8 tools
   - Auth: reads Bearer token from MCP connection metadata
-  - Passes token to all FastAPI calls as Authorization header
+  - Passes token to all Flask API calls as Authorization header
 - apps/mcp-server/skillhub_mcp/tools/install.py:
   - install_skill(slug: str, version: str = "latest") → dict
   - Calls GET /api/v1/skills/{slug}/versions/{version}
@@ -1035,11 +1035,11 @@ Write tests FIRST for:
 
 Do NOT:
 - Write SKILL.md if division check fails
-- Make direct DB calls — everything through FastAPI
+- Make direct DB calls — everything through Flask API
 
 Acceptance Criteria:
 - [ ] MCP server starts: mise run dev:mcp
-- [ ] install_skill test passes with mocked FastAPI
+- [ ] install_skill test passes with mocked Flask API
 - [ ] Division enforcement blocks unauthorized installs
 - [ ] SKILL.md written to correct path on success
 ```

@@ -38,7 +38,7 @@ Transport: `streamable-http`.
 ## API Delegation Pattern
 
 ```
-Claude Code →(MCP protocol)→ MCP Server →(HTTP + Bearer)→ FastAPI →(SQLAlchemy)→ PostgreSQL
+Claude Code →(MCP protocol)→ MCP Server →(HTTP + Bearer)→ Flask API →(SQLAlchemy)→ PostgreSQL
 ```
 
 Thin layer. All business logic in the API. Each tool creates an `APIClient`, delegates to `skillhub_mcp/tools/`, returns API response.

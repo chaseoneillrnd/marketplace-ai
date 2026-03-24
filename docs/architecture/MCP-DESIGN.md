@@ -15,7 +15,7 @@ graph LR
         AC[APIClient]
     end
     subgraph "Backend :8000"
-        API[FastAPI]
+        API[Flask API]
     end
 
     CC -->|streamable-http| S
@@ -26,7 +26,7 @@ graph LR
 
 ## Tool Registry
 
-8 tools registered on the `FastMCP` instance in `server.py`. Each tool:
+9 tools registered on the `FastMCP` instance in `server.py`. Each tool:
 1. Accepts typed parameters + optional `token` string
 2. Creates `APIClient(base_url, token)`
 3. Delegates to a function in `skillhub_mcp/tools/{name}.py`

@@ -126,10 +126,10 @@ openapi:freshness:
   extends: .python_base
   script:
     - python -c "
-      from skillhub.main import create_app;
+      from skillhub_flask.app import create_app;
       import json;
       app = create_app();
-      generated = json.dumps(app.openapi(), indent=2);
+      generated = json.dumps(app.spec, indent=2);
       with open('specs/openapi.json') as f:
         committed = f.read();
       assert generated.strip() == committed.strip(), 'OpenAPI spec is stale. Run mise run gen:openapi';

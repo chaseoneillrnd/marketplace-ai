@@ -15,7 +15,7 @@ graph TB
 
     subgraph SkillHub
         W[React SPA<br/>Vite + React 18<br/>:5173]
-        A[FastAPI Backend<br/>Python 3.12<br/>:8000]
+        A[Flask/APIFlask Backend<br/>Python 3.12<br/>:8000]
         M[MCP Server<br/>FastMCP<br/>:8001]
     end
 
@@ -41,8 +41,8 @@ graph TB
 
 ## Data Flow
 
-1. **Browse**: Browser -> React SPA -> `GET /api/v1/skills` -> FastAPI -> PostgreSQL
-2. **Install via MCP**: Claude Code -> MCP Server -> `POST /api/v1/skills/{slug}/install` -> FastAPI (division check) -> PostgreSQL
+1. **Browse**: Browser -> React SPA -> `GET /api/v1/skills` -> Flask API -> PostgreSQL
+2. **Install via MCP**: Claude Code -> MCP Server -> `POST /api/v1/skills/{slug}/install` -> Flask API (division check) -> PostgreSQL
 3. **Submit**: User -> `POST /api/v1/submissions` -> Gate 1 (sync) -> Admin triggers Gate 2 (LLM) -> Gate 3 (human) -> Published
 4. **Flags**: Any client -> `GET /api/v1/flags` -> division override resolution -> merged flag map
 
