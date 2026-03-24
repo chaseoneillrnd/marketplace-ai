@@ -80,7 +80,50 @@ def create_app(config: AppConfig | None = None) -> APIFlask:
         })
         logger.warning("STUB AUTH ENABLED — NOT FOR PRODUCTION")
     else:
-        # Production assertion: stub auth module is not imported
         logger.info("Stub auth disabled")
+
+    # ── Core Domain Blueprints (Phase 3) ──────────────────────────────
+    from skillhub_flask.blueprints.skills import bp as skills_bp
+    from skillhub_flask.blueprints.users import bp as users_bp
+    from skillhub_flask.blueprints.social import bp as social_bp
+    from skillhub_flask.blueprints.submissions import bp as submissions_bp
+    from skillhub_flask.blueprints.flags import bp as flags_bp
+    from skillhub_flask.blueprints.feedback import bp as feedback_bp
+    from skillhub_flask.blueprints.roadmap import bp as roadmap_bp
+
+    app.register_blueprint(skills_bp)
+    app.register_blueprint(users_bp)
+    app.register_blueprint(social_bp)
+    app.register_blueprint(submissions_bp)
+    app.register_blueprint(flags_bp)
+    app.register_blueprint(feedback_bp)
+    app.register_blueprint(roadmap_bp)
+
+    # Public endpoints for core domain
+    PUBLIC_ENDPOINTS.update({
+        "skills.list_skills",
+        "skills.list_categories",
+        "skills.get_skill",
+        "flags.list_flags",
+        "roadmap.get_changelog",
+    })
+
+    # ── Admin Blueprints (Phase 4) ────────────────────────────────────
+    from skillhub_flask.blueprints.admin import bp as admin_bp
+    from skillhub_flask.blueprints.analytics import bp as analytics_bp
+    from skillhub_flask.blueprints.exports import bp as exports_bp
+    from skillhub_flask.blueprints.review_queue import bp as review_queue_bp
+
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(exports_bp)
+    app.register_blueprint(review_queue_bp)
+
+    # Register DivisionRestrictedError handler
+    from skillhub_flask.validation import DivisionRestrictedError
+
+    @app.errorhandler(DivisionRestrictedError)
+    def handle_division_restricted(e: DivisionRestrictedError) -> tuple:
+        return {"detail": {"error": "division_restricted"}}, 403
 
     return app
