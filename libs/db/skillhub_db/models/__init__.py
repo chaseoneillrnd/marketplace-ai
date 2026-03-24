@@ -29,6 +29,7 @@ from skillhub_db.models.submission import (
     DivisionAccessRequest,
     Submission,
     SubmissionGateResult,
+    SubmissionStateTransition,
 )
 from skillhub_db.models.user import User
 
@@ -58,6 +59,7 @@ __all__ = [
     "SkillVersion",
     "Submission",
     "SubmissionGateResult",
+    "SubmissionStateTransition",
     "TriggerPhrase",
     "User",
 ]

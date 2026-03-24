@@ -27,6 +27,8 @@ class SubmissionStatus(enum.StrEnum):
     GATE2_FLAGGED = "gate2_flagged"
     GATE2_FAILED = "gate2_failed"
     GATE3_CHANGES_REQUESTED = "gate3_changes_requested"
+    CHANGES_REQUESTED = "changes_requested"
+    REVISION_PENDING = "revision_pending"
     APPROVED = "approved"
     REJECTED = "rejected"
     PUBLISHED = "published"
@@ -62,6 +64,13 @@ class Submission(UUIDMixin, TimestampMixin, Base):
         Enum(SubmissionStatus, native_enum=False, length=30),
         default=SubmissionStatus.SUBMITTED,
     )
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    parent_submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("submissions.id"), nullable=True)
+    target_skill_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("skills.id"), nullable=True)
+    rejection_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    change_request_flags: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    submitted_via: Mapped[str] = mapped_column(String(20), nullable=False, default="form", server_default="form")
     gate3_reviewer_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
@@ -89,6 +98,24 @@ class SubmissionGateResult(UUIDMixin, Base):
 
     def __repr__(self) -> str:
         return f"<SubmissionGateResult gate={self.gate} result={self.result}>"
+
+
+class SubmissionStateTransition(UUIDMixin, Base):
+    """Append-only record of submission status changes with optional diffs."""
+
+    __tablename__ = "submission_state_transitions"
+
+    submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    diff_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    change_flags_resolved: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<SubmissionStateTransition {self.from_status}->{self.to_status}>"
 
 
 class DivisionAccessRequest(UUIDMixin, TimestampMixin, Base):

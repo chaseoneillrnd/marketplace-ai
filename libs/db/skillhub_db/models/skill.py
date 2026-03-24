@@ -125,6 +125,7 @@ class SkillVersion(UUIDMixin, Base):
     frontmatter: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     changelog: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("submissions.id"), nullable=True)
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
