@@ -55,8 +55,32 @@ def create_app(config: AppConfig | None = None) -> APIFlask:
             logger.warning("Failed to apply Flask OTel instrumentation", exc_info=True)
 
     # Register blueprints
+    from skillhub_flask.auth import PUBLIC_ENDPOINTS
     from skillhub_flask.blueprints.health import bp as health_bp
 
     app.register_blueprint(health_bp)
+
+    # Auth blueprint (always registered — /auth/me, OAuth placeholders)
+    from skillhub_flask.blueprints.auth import bp as auth_bp
+
+    app.register_blueprint(auth_bp)
+    PUBLIC_ENDPOINTS.update({
+        "auth.oauth_redirect",
+        "auth.oauth_callback",
+    })
+
+    # Stub auth (conditional — only when stub_auth_enabled)
+    if settings.stub_auth_enabled:
+        from skillhub_flask.blueprints.stub_auth import bp as stub_auth_bp
+
+        app.register_blueprint(stub_auth_bp)
+        PUBLIC_ENDPOINTS.update({
+            "stub_auth.login",
+            "stub_auth.list_dev_users",
+        })
+        logger.warning("STUB AUTH ENABLED — NOT FOR PRODUCTION")
+    else:
+        # Production assertion: stub auth module is not imported
+        logger.info("Stub auth disabled")
 
     return app
