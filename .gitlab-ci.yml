@@ -44,10 +44,8 @@ test:api:
   extends: .python_base
   services:
     - postgres:16-alpine
-    - redis:7-alpine
   variables:
     DATABASE_URL: "postgresql://skillhub:skillhub@postgres:5432/skillhub"
-    REDIS_URL: "redis://redis:6379/0"
     JWT_SECRET: "ci-test-secret"
     STUB_AUTH_ENABLED: "true"
     POSTGRES_USER: skillhub

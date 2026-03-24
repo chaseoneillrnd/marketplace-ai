@@ -16,6 +16,10 @@ import { RequireAdmin } from './components/admin/RequireAdmin';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLoadingSkeleton } from './components/admin/AdminLoadingSkeleton';
 
+const FeedbackView = lazy(() =>
+  import('./views/FeedbackView').then((m) => ({ default: m.FeedbackView })),
+);
+
 const AdminDashboardView = lazy(() =>
   import('./views/admin/AdminDashboardView').then((m) => ({ default: m.AdminDashboardView })),
 );
@@ -94,6 +98,14 @@ function AppShell() {
           <Route path="/filtered" element={<FilteredView />} />
           <Route path="/skills/:slug" element={<SkillDetailView />} />
           <Route path="/submit" element={<SubmitSkillPage />} />
+          <Route
+            path="/feedback"
+            element={
+              <Suspense fallback={<div style={{ padding: '60px', textAlign: 'center', opacity: 0.5 }}>Loading…</div>}>
+                <FeedbackView />
+              </Suspense>
+            }
+          />
 
           {/* Admin routes — gated by RequireAdmin */}
           <Route element={<RequireAdmin />}>

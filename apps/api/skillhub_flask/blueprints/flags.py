@@ -58,7 +58,7 @@ def list_admin_flags() -> tuple:
 def post_flag() -> tuple:
     """Create a new feature flag. Platform team only."""
     db = get_db()
-    body = FlagCreateRequest(**request.get_json(force=True))
+    body = FlagCreateRequest.model_validate(request.get_json(force=True) or {})
 
     actor_id: UUID | None = None
     user = getattr(g, "current_user", None)
@@ -85,7 +85,7 @@ def post_flag() -> tuple:
 def patch_flag(key: str) -> tuple:
     """Update an existing feature flag. Platform team only."""
     db = get_db()
-    body = FlagUpdateRequest(**request.get_json(force=True))
+    body = FlagUpdateRequest.model_validate(request.get_json(force=True) or {})
 
     actor_id: UUID | None = None
     user = getattr(g, "current_user", None)

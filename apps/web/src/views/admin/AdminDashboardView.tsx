@@ -1,15 +1,12 @@
+import { useMemo } from 'react';
 import { useT } from '../../context/ThemeContext';
 import { StatCard } from '../../components/admin/StatCard';
 import { AreaChartBase } from '../../components/charts/AreaChartBase';
 import { DivisionChartGrid } from '../../components/charts/DivisionChartGrid';
 import { SubmissionFunnel } from '../../components/charts/SubmissionFunnel';
+import { AdminLoadingSkeleton } from '../../components/admin/AdminLoadingSkeleton';
 import { useChartTheme } from '../../hooks/useChartTheme';
-import {
-  MOCK_DASHBOARD_SUMMARY as summary,
-  MOCK_TIME_SERIES as timeSeries,
-  MOCK_FUNNEL as funnel,
-  MOCK_DIVISION_DATA as divisionData,
-} from '../../lib/adminMockData';
+import { useAdminDashboard } from '../../hooks/useAdminDashboard';
 
 const DIVISION_COLORS: Record<string, string> = {
   'engineering-org': '#4b7dff',
@@ -19,15 +16,40 @@ const DIVISION_COLORS: Record<string, string> = {
 export function AdminDashboardView() {
   const C = useT();
   const ct = useChartTheme();
+  const { summary, timeSeries, funnel, divisionData, loading, error } = useAdminDashboard();
 
-  const sparkStub = Array.from({ length: 7 }, () => ({ value: Math.floor(Math.random() * 40) + 10 }));
+  const sparkStub = useMemo(
+    () => Array.from({ length: 7 }, () => ({ value: Math.floor(Math.random() * 40) + 10 })),
+    [],
+  );
+
+  if (loading) {
+    return <AdminLoadingSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div
+        data-testid="dashboard-error"
+        style={{
+          padding: '24px',
+          borderRadius: '8px',
+          background: C.adminBg,
+          color: C.red,
+          border: `1px solid ${C.border}`,
+        }}
+      >
+        <strong>Failed to load dashboard:</strong> {error}
+      </div>
+    );
+  }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 700, color: C.text, margin: 0 }}>Dashboard</h1>
         <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '11px', fontWeight: 400, color: C.dim }}>
-          Updated 3 min ago
+          Live data
         </span>
       </div>
 
@@ -53,7 +75,7 @@ export function AdminDashboardView() {
       <div style={{ marginBottom: '24px' }} data-testid="charts-area">
         <h2 style={{ fontSize: '16px', fontWeight: 600, color: C.text, marginBottom: '8px' }}>Installs Over Time</h2>
         <AreaChartBase
-          data={timeSeries}
+          data={timeSeries as unknown as Record<string, unknown>[]}
           series={[
             { key: 'installs', color: ct.seriesColors.installs, name: 'Installs' },
             { key: 'users', color: ct.seriesColors.views, name: 'Users' },

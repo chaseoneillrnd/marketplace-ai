@@ -12,6 +12,7 @@ from opentelemetry import trace
 
 from skillhub_mcp.api_client import APIClient
 from skillhub_mcp.config import MCPSettings
+from skillhub_mcp.tools.install import _is_valid_slug
 
 logger = logging.getLogger(__name__)
 _tracer = trace.get_tracer(__name__)
@@ -42,6 +43,11 @@ async def update_skill(
     """
     with _tracer.start_as_current_span("update_skill") as span:
         span.set_attribute("skill.slug", slug)
+
+        # Slug validation — prevent path traversal
+        if not _is_valid_slug(slug):
+            span.set_attribute("error", True)
+            return {"success": False, "error": "invalid_slug"}
 
         skill_path = Path(settings.skills_dir) / slug / "SKILL.md"
         installed_version = _read_installed_version(skill_path)
@@ -101,4 +107,6 @@ async def update_skill(
             "updated": True,
             "from_version": installed_version,
             "to_version": latest_version,
+            "restart_required": True,
+            "note": "Restart Claude Code to load the updated skill.",
         }

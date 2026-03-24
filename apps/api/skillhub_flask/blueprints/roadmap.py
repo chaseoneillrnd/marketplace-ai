@@ -97,7 +97,7 @@ def create_platform_update() -> tuple:
     db = get_db()
     current_user: dict[str, Any] = g.current_user
 
-    body = PlatformUpdateCreate(**request.get_json(force=True))
+    body = PlatformUpdateCreate.model_validate(request.get_json(force=True) or {})
 
     result = create_update(
         db,
@@ -145,7 +145,7 @@ def ship_platform_update(update_id: str) -> tuple:
     db = get_db()
     current_user: dict[str, Any] = g.current_user
 
-    body = ShipRequest(**request.get_json(force=True))
+    body = ShipRequest.model_validate(request.get_json(force=True) or {})
 
     try:
         result = ship_update(

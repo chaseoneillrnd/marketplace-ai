@@ -24,8 +24,7 @@ env = { PYTHONPATH = "apps/api:libs/db:libs/python-common", FLASK_DEBUG = "1" }
 [tasks."dev:mcp"]
 description = "Start MCP server"
 run = "python -m skillhub_mcp.server"
-dir = "apps/mcp-server"
-env = { PYTHONPATH = "../../libs/python-common" }
+env = { PYTHONPATH = "apps/mcp-server:libs/python-common" }
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 
@@ -187,7 +186,7 @@ run = "docker compose exec postgres pg_dump -U skillhub -d skillhub --schema-onl
 
 [tasks."gen:openapi"]
 description = "Generate OpenAPI spec"
-run = "python -c \"from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))\" > specs/openapi.json"
+run = "$(pyenv which python) -c \"from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))\" > specs/openapi.json"
 env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."gen:types"]
@@ -323,7 +322,6 @@ echo -n "pip:            " && pip --version
 echo -n "docker:         " && docker --version
 echo -n "docker compose: " && docker compose version
 echo -n "psql:           " && (psql --version 2>/dev/null || echo "not found (optional)")
-echo -n "redis-cli:      " && (redis-cli --version 2>/dev/null || echo "not found (optional)")
 echo -n "mise:           " && mise --version
 echo ""
 

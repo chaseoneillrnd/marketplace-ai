@@ -57,8 +57,7 @@ Config: `mise.toml` at repo root.
 | Service | Image | Port | Depends On |
 |---|---|---|---|
 | `postgres` | `postgres:16-alpine` | 5432 | - |
-| `redis` | `redis:7-alpine` | 6379 | - |
-| `api` | Custom Dockerfile | 8000 | postgres, redis |
+| `api` | Custom Dockerfile | 8000 | postgres |
 | `mcp-server` | Custom Dockerfile | 8001 | api |
 | `web` | Custom Dockerfile | 5173 | api |
 

@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 from opentelemetry import trace
 from skillhub_db.models.audit import AuditLog
-from skillhub_db.models.feedback import SkillFeedback
+from skillhub_db.models.feedback import FeedbackUpvote, SkillFeedback
 from skillhub_db.models.skill import Skill
 from skillhub_db.models.user import User
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -161,20 +159,39 @@ def upvote_feedback(
     feedback_id: str,
     user_id: str,
 ) -> dict[str, Any]:
-    """Increment upvote count on a feedback entry."""
-    with tracer.start_as_current_span("service.feedback.upvote"):
+    """Increment upvote count on a feedback entry (idempotent — one upvote per user)."""
+    with tracer.start_as_current_span("service.feedback.upvote") as span:
         fid = uuid.UUID(feedback_id) if isinstance(feedback_id, str) else feedback_id
+        uid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+
         feedback = db.query(SkillFeedback).filter(SkillFeedback.id == fid).first()
         if not feedback:
             raise ValueError("Feedback not found")
 
+        existing = (
+            db.query(FeedbackUpvote)
+            .filter(FeedbackUpvote.feedback_id == fid, FeedbackUpvote.user_id == uid)
+            .first()
+        )
+        if existing:
+            span.set_attribute("feedback.already_upvoted", True)
+            return {
+                "id": feedback.id,
+                "upvotes": feedback.upvotes,
+                "already_upvoted": True,
+            }
+
+        upvote_row = FeedbackUpvote(feedback_id=fid, user_id=uid)
+        db.add(upvote_row)
         feedback.upvotes = feedback.upvotes + 1
         db.commit()
         db.refresh(feedback)
 
+        span.set_attribute("feedback.already_upvoted", False)
         return {
             "id": feedback.id,
             "upvotes": feedback.upvotes,
+            "already_upvoted": False,
         }
 
 

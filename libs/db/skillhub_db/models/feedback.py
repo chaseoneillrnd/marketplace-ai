@@ -54,3 +54,20 @@ class PlatformUpdate(Base):
 
     def __repr__(self) -> str:
         return f"<PlatformUpdate {self.id} title={self.title!r}>"
+
+
+class FeedbackUpvote(Base):
+    """Tracks which users have upvoted which feedback entries (idempotency table)."""
+
+    __tablename__ = "feedback_upvotes"
+
+    feedback_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("skill_feedback.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<FeedbackUpvote feedback_id={self.feedback_id} user_id={self.user_id}>"

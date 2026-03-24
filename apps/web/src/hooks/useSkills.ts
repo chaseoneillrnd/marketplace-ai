@@ -11,6 +11,7 @@ interface BrowseParams {
   install_method?: string;
   verified?: boolean;
   featured?: boolean;
+  favorited?: boolean;
   page?: number;
   per_page?: number;
 }
@@ -36,6 +37,7 @@ export function useSkillBrowse(params: BrowseParams) {
       if (p.install_method && p.install_method !== 'All') queryParams.install_method = p.install_method;
       if (p.verified !== undefined) queryParams.verified = p.verified;
       if (p.featured !== undefined) queryParams.featured = p.featured;
+      if (p.favorited !== undefined) queryParams.favorited = p.favorited;
       if (p.page) queryParams.page = p.page;
       if (p.per_page) queryParams.per_page = p.per_page;
 
@@ -69,6 +71,7 @@ export function useSkillBrowse(params: BrowseParams) {
     params.install_method,
     params.verified,
     params.featured,
+    params.favorited,
     params.page,
     params.per_page,
   ]);

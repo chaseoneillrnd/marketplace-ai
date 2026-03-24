@@ -8,7 +8,7 @@ from typing import Any
 
 from flask import Blueprint, g, jsonify, request
 
-from skillhub_flask.auth import require_platform_team, require_security_team
+from skillhub_flask.auth import require_security_team
 from skillhub_flask.db import get_db
 
 from skillhub.schemas.admin import (
@@ -41,7 +41,11 @@ def _enforce_platform_team() -> Any:
 
     The security_team check for DELETE is handled by the route-level decorator,
     so we skip the blanket platform_team check for that specific endpoint.
+    OPTIONS requests are passed through for CORS preflight.
     """
+    if request.method == "OPTIONS":
+        return None
+
     if request.endpoint == "admin.remove_skill_endpoint":
         return None
 

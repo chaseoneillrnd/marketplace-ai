@@ -232,6 +232,7 @@ def get_latest_version(slug: str) -> tuple:
         frontmatter=version.frontmatter,
         changelog=version.changelog,
         published_at=version.published_at,
+        divisions=[d.division_slug for d in skill.divisions],
     )
     return jsonify(response.model_dump(mode="json")), 200
 
@@ -269,5 +270,6 @@ def get_version(slug: str, version: str) -> tuple:
         frontmatter=ver.frontmatter,
         changelog=ver.changelog,
         published_at=ver.published_at,
+        divisions=[d.division_slug for d in skill.divisions],
     )
     return jsonify(response.model_dump(mode="json")), 200

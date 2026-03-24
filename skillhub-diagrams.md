@@ -48,14 +48,12 @@ C4Container
     Container(api, "API", "Flask/APIFlask + Python 3.12 + gunicorn", "All business logic, auth, data.")
     Container(mcp, "MCP Server", "Python + mcp SDK", "Exposes 9 MCP tools. Delegates to API.")
     ContainerDb(pg, "PostgreSQL 16", "Primary datastore", "15 tables. Alembic migrations.")
-    ContainerDb(redis, "Redis 7", "Cache + rate limiting", "Sessions, flag cache (future).")
 
     Rel(user, web, "HTTPS", "Browser")
     Rel(user, mcp, "MCP Protocol", "Claude Code / Desktop")
     Rel(web, api, "HTTPS REST", "/api/v1/*")
     Rel(mcp, api, "HTTP", "Internal REST — never direct DB")
     Rel(api, pg, "SQLAlchemy ORM", "Port 5432")
-    Rel(api, redis, "redis-py", "Port 6379")
 ```
 
 ### 1.3 NX Project Dependency Graph

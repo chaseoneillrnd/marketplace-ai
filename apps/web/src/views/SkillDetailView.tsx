@@ -24,6 +24,8 @@ export function SkillDetailView() {
   const [installed, setInstalled] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [reqAccess, setReqAccess] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [copiedCmd, setCopiedCmd] = useState(false);
 
   useEffect(() => {
     if (skill) {
@@ -54,8 +56,13 @@ export function SkillDetailView() {
   const hasAccess = !userDiv || skill.divisions.includes(userDiv);
   const accent = skill.author_type === 'official' ? C.accent : C.green;
 
-  const handleInstall = async () => {
+  const handleInstallClick = () => {
     if (!hasAccess || installed) return;
+    setShowInstallModal(true);
+    setCopiedCmd(false);
+  };
+
+  const handleConfirmInstall = async () => {
     setActionError(null);
     try {
       await api.post(`/api/v1/skills/${skill.slug}/install`, {
@@ -63,10 +70,17 @@ export function SkillDetailView() {
         version: skill.current_version,
       });
       setInstalled(true);
+      setShowInstallModal(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Install failed');
     }
   };
+
+  const installCmd = skill.install_method === 'mcp'
+    ? `# SkillHub MCP -> install_skill("${skill.slug}")`
+    : skill.install_method === 'manual'
+    ? `/mnt/skills/user/${skill.slug}/SKILL.md`
+    : `claude skill install ${skill.slug}`;
 
   const handleFavorite = async () => {
     setActionError(null);
@@ -305,7 +319,7 @@ export function SkillDetailView() {
               </button>
               {user ? (
                 <button
-                  onClick={handleInstall}
+                  onClick={handleInstallClick}
                   disabled={!hasAccess && !reqAccess}
                   style={{
                     padding: '5px 12px',
@@ -319,7 +333,7 @@ export function SkillDetailView() {
                     opacity: !hasAccess ? 0.5 : 1,
                   }}
                 >
-                  {installed ? '\u2713 Installed' : hasAccess ? 'Install' : 'Restricted'}
+                  {installed ? '\u2713 Added' : hasAccess ? 'Add to My Claude' : 'Restricted'}
                 </button>
               ) : (
                 <button
@@ -335,7 +349,7 @@ export function SkillDetailView() {
                     fontWeight: 600,
                   }}
                 >
-                  Sign in to Install
+                  Sign in to Add
                 </button>
               )}
             </div>
@@ -592,6 +606,113 @@ export function SkillDetailView() {
 
         {tab === 'reviews' && <ReviewsSection slug={skill.slug} user={user} C={C} />}
       </div>
+
+      {/* Install modal */}
+      {showInstallModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowInstallModal(false); }}
+        >
+          <div
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.borderHi}`,
+              borderRadius: '14px',
+              padding: '28px',
+              width: '480px',
+              maxWidth: 'calc(100vw - 48px)',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
+            }}
+          >
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: C.text, margin: '0 0 6px' }}>
+              Add to My Claude
+            </h2>
+            <p style={{ fontSize: '13px', color: C.muted, margin: '0 0 18px', lineHeight: '1.5' }}>
+              Run this command to install <strong style={{ color: C.text }}>{skill.name}</strong>:
+            </p>
+
+            <div style={{ background: C.codeBg, borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+              <pre
+                style={{
+                  margin: 0,
+                  fontSize: '12px',
+                  color: C.mode === 'dark' ? '#5af2b0' : '#0a5c38',
+                  fontFamily: "'JetBrains Mono',monospace",
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {installCmd}
+              </pre>
+            </div>
+
+            {actionError && (
+              <div style={{ fontSize: '12px', color: C.red, marginBottom: '12px' }}>{actionError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setShowInstallModal(false)}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  border: `1px solid ${C.border}`,
+                  background: 'transparent',
+                  color: C.muted,
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(installCmd).then(() => {
+                    setCopiedCmd(true);
+                    setTimeout(() => setCopiedCmd(false), 2000);
+                  });
+                }}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  border: `1px solid ${C.border}`,
+                  background: copiedCmd ? `${C.green}18` : C.surface,
+                  color: copiedCmd ? C.green : C.muted,
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                {copiedCmd ? '\u2713 Copied' : 'Copy Command'}
+              </button>
+              <button
+                onClick={handleConfirmInstall}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: C.accent,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                Mark as Added
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

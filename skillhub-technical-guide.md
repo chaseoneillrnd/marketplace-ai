@@ -211,8 +211,8 @@ Create docker-compose.yml, docker-compose.prod.yml, and apps/api/Dockerfile
 from the design doc (Sections 4a, 4b, 4d).
 
 Requirements:
-- docker-compose.yml: postgres, redis, api, mcp-server, web services
-- Healthchecks on postgres and redis
+- docker-compose.yml: postgres, api, mcp-server, web services
+- Healthchecks on postgres
 - API mounts ./apps/api and ./libs as volumes for hot reload
 - docker-compose.prod.yml overrides: no volume mounts, worker mode, nginx for web
 - apps/api/Dockerfile: python:3.12-slim, uv, PYTHONPATH includes /libs
@@ -1448,4 +1448,3 @@ libs/python-common → (no internal deps)
 | mcp-server | 8001 | HTTP (MCP) |
 | web | 5173 | HTTP (dev) |
 | postgres | 5432 | TCP |
-| redis | 6379 | TCP |

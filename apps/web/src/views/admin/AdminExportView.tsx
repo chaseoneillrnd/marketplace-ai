@@ -12,12 +12,38 @@ const SCOPE_LABELS: Record<string, string> = {
   analytics: 'Analytics',
 };
 
+const DATE_PRESETS = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: '7d', label: 'Last 7 Days' },
+  { key: '30d', label: 'Last 30 Days' },
+  { key: '90d', label: 'Last 90 Days' },
+  { key: 'ytd', label: 'Year to Date' },
+  { key: 'all', label: 'All Time' },
+] as const;
+
+function getPresetDates(preset: string): { start: string; end: string } {
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  switch (preset) {
+    case 'today': return { start: fmt(today), end: fmt(today) };
+    case 'yesterday': { const d = new Date(today); d.setDate(d.getDate() - 1); return { start: fmt(d), end: fmt(d) }; }
+    case '7d': { const d = new Date(today); d.setDate(d.getDate() - 7); return { start: fmt(d), end: fmt(today) }; }
+    case '30d': { const d = new Date(today); d.setDate(d.getDate() - 30); return { start: fmt(d), end: fmt(today) }; }
+    case '90d': { const d = new Date(today); d.setDate(d.getDate() - 90); return { start: fmt(d), end: fmt(today) }; }
+    case 'ytd': return { start: `${today.getFullYear()}-01-01`, end: fmt(today) };
+    case 'all': return { start: '', end: '' };
+    default: return { start: '', end: '' };
+  }
+}
+
 export function AdminExportView() {
   const C = useT();
   const [scope, setScope] = useState<string>('installs');
   const [format, setFormat] = useState<string>('csv');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const { exportStatus, loading, remainingExports, requestExport } = useAdminExport();
 
@@ -28,6 +54,18 @@ export function AdminExportView() {
       start_date: startDate || undefined,
       end_date: endDate || undefined,
     });
+  };
+
+  const handlePreset = (key: string) => {
+    const { start, end } = getPresetDates(key);
+    setStartDate(start);
+    setEndDate(end);
+    setActivePreset(key);
+  };
+
+  const handleDateInput = (setter: (v: string) => void, value: string) => {
+    setter(value);
+    setActivePreset(null);
   };
 
   const btnGroupStyle = (active: boolean): React.CSSProperties => ({
@@ -55,6 +93,20 @@ export function AdminExportView() {
     cursor: 'pointer',
     transition: 'all 0.15s',
     textTransform: 'uppercase' as const,
+  });
+
+  const presetBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '5px 12px',
+    borderRadius: '99px',
+    border: `1px solid ${active ? C.accent : C.border}`,
+    background: active ? C.accentDim : 'transparent',
+    color: active ? C.accent : C.muted,
+    fontSize: '11px',
+    fontWeight: 600,
+    fontFamily: 'Outfit, sans-serif',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+    whiteSpace: 'nowrap' as const,
   });
 
   const inputStyle: React.CSSProperties = {
@@ -107,28 +159,39 @@ export function AdminExportView() {
       </div>
 
       {/* Date range */}
-      <div style={{ display: 'flex', gap: '14px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <div>
-          <label htmlFor="export-start" style={labelStyle}>Start Date</label>
-          <input
-            id="export-start"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            style={inputStyle}
-          />
+      <div style={{ marginBottom: '8px' }}>
+        <div style={labelStyle}>Date Range</div>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+          {DATE_PRESETS.map(({ key, label }) => (
+            <button key={key} style={presetBtnStyle(activePreset === key)} onClick={() => handlePreset(key)}>
+              {label}
+            </button>
+          ))}
         </div>
-        <div>
-          <label htmlFor="export-end" style={labelStyle}>End Date</label>
-          <input
-            id="export-end"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            style={inputStyle}
-          />
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+          <div>
+            <label htmlFor="export-start" style={labelStyle}>Start Date</label>
+            <input
+              id="export-start"
+              type="date"
+              value={startDate}
+              onChange={(e) => handleDateInput(setStartDate, e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label htmlFor="export-end" style={labelStyle}>End Date</label>
+            <input
+              id="export-end"
+              type="date"
+              value={endDate}
+              onChange={(e) => handleDateInput(setEndDate, e.target.value)}
+              style={inputStyle}
+            />
+          </div>
         </div>
       </div>
+      <div style={{ marginBottom: '20px' }} />
 
       {/* Request Export button */}
       <button

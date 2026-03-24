@@ -65,7 +65,7 @@ export function AdminFeedbackView() {
     transition: 'all 0.15s',
   });
 
-  const totalPages = data ? Math.ceil(data.total / data.page_size) : 1;
+  const totalPages = data ? Math.ceil(data.total / data.per_page) : 1;
 
   return (
     <div data-testid="admin-feedback-view">

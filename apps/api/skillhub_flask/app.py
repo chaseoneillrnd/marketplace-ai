@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 
 from apiflask import APIFlask
+from flask import jsonify
 from flask_cors import CORS
+from pydantic import ValidationError
 
 from skillhub_flask.auth import register_auth
 from skillhub_flask.config import AppConfig
@@ -104,8 +106,11 @@ def create_app(config: AppConfig | None = None) -> APIFlask:
         "skills.list_skills",
         "skills.list_categories",
         "skills.get_skill",
+        "skills.get_version",
+        "skills.get_latest_version",
         "flags.list_flags",
         "roadmap.get_changelog",
+        "feedback.list_public_feedback",
     })
 
     # ── Admin Blueprints (Phase 4) ────────────────────────────────────
@@ -125,5 +130,15 @@ def create_app(config: AppConfig | None = None) -> APIFlask:
     @app.errorhandler(DivisionRestrictedError)
     def handle_division_restricted(e: DivisionRestrictedError) -> tuple:
         return {"detail": {"error": "division_restricted"}}, 403
+
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(e: ValidationError) -> tuple:
+        return jsonify({"detail": e.errors(include_url=False)}), 422
+
+    # Divisions reference endpoint
+    from skillhub_flask.blueprints.divisions import bp as divisions_bp
+
+    app.register_blueprint(divisions_bp)
+    PUBLIC_ENDPOINTS.add("divisions.list_divisions")
 
     return app

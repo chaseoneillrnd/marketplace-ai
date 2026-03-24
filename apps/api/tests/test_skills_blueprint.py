@@ -274,14 +274,16 @@ class TestListVersions:
 
 
 # ---------------------------------------------------------------------------
-# GET /api/v1/skills/<slug>/versions/latest (auth required)
+# GET /api/v1/skills/<slug>/versions/latest (public)
 # ---------------------------------------------------------------------------
 class TestGetLatestVersion:
-    """GET /api/v1/skills/<slug>/versions/latest — requires auth."""
+    """GET /api/v1/skills/<slug>/versions/latest — public endpoint."""
 
-    def test_returns_401_without_auth(self, client: Any) -> None:
+    def test_accessible_without_auth(self, client: Any, mock_db: MagicMock) -> None:
+        """Version endpoints are public to support MCP skill install."""
+        mock_db.query.return_value.filter.return_value.first.return_value = None
         resp = client.get("/api/v1/skills/my-skill/versions/latest")
-        assert resp.status_code == 401
+        assert resp.status_code == 404  # No skill found, but not 401
 
     def test_returns_200_with_latest_version(self, client: Any, mock_db: MagicMock) -> None:
         skill_mock = MagicMock(id=SKILL_ID, current_version="1.0.0")
@@ -322,14 +324,16 @@ class TestGetLatestVersion:
 
 
 # ---------------------------------------------------------------------------
-# GET /api/v1/skills/<slug>/versions/<version> (auth required)
+# GET /api/v1/skills/<slug>/versions/<version> (public)
 # ---------------------------------------------------------------------------
 class TestGetSpecificVersion:
-    """GET /api/v1/skills/<slug>/versions/<version> — requires auth."""
+    """GET /api/v1/skills/<slug>/versions/<version> — public endpoint."""
 
-    def test_returns_401_without_auth(self, client: Any) -> None:
+    def test_accessible_without_auth(self, client: Any, mock_db: MagicMock) -> None:
+        """Version endpoints are public to support MCP skill install."""
+        mock_db.query.return_value.filter.return_value.first.return_value = None
         resp = client.get("/api/v1/skills/my-skill/versions/1.0.0")
-        assert resp.status_code == 401
+        assert resp.status_code == 404  # No skill found, but not 401
 
     def test_returns_200_with_specific_version(self, client: Any, mock_db: MagicMock) -> None:
         skill_mock = MagicMock(id=SKILL_ID, current_version="1.0.0")

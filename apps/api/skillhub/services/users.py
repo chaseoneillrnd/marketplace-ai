@@ -8,7 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from opentelemetry import trace
-from skillhub_db.models.skill import Skill, SkillDivision, SkillTag
+from skillhub_db.models.skill import Skill
 from skillhub_db.models.social import Favorite, Fork, Install, Review
 from skillhub_db.models.submission import Submission
 from skillhub_db.models.user import User

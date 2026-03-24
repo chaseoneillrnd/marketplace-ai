@@ -50,7 +50,11 @@ def get_review_queue(
         gate1 = next((g for g in gate_results if g.gate == 1), None)
         gate2 = next((g for g in gate_results if g.gate == 2), None)
 
-        wait_hours = (now - s.created_at).total_seconds() / 3600 if s.created_at else 0
+        if s.created_at:
+            ca = s.created_at if s.created_at.tzinfo else s.created_at.replace(tzinfo=timezone.utc)
+            wait_hours = (now - ca).total_seconds() / 3600
+        else:
+            wait_hours = 0.0
 
         items.append(
             {

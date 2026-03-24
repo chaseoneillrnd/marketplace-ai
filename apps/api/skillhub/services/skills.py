@@ -12,7 +12,7 @@ from opentelemetry import trace
 from skillhub_db.models.skill import Skill, SkillDivision, SkillTag
 from skillhub_db.models.social import Favorite, Install
 from skillhub_db.models.user import User
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 logger = logging.getLogger(__name__)

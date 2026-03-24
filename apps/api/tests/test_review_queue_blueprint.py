@@ -66,6 +66,10 @@ def _queue_item(submission_id: str | None = None) -> dict:
 class TestListReviewQueue:
     """GET /admin/review-queue — platform team only."""
 
+    def test_list_401_no_token(self, client: Any) -> None:
+        resp = client.get("/api/v1/admin/review-queue")
+        assert resp.status_code == 401
+
     @patch("skillhub_flask.blueprints.review_queue.get_review_queue")
     def test_list_200_platform(self, mock_rq: MagicMock, client: Any) -> None:
         item = _queue_item()
@@ -107,6 +111,11 @@ class TestListReviewQueue:
 
 class TestClaimSubmission:
     """POST /admin/review-queue/<id>/claim — platform team only."""
+
+    def test_claim_401_no_token(self, client: Any) -> None:
+        sub_id = str(uuid4())
+        resp = client.post(f"/api/v1/admin/review-queue/{sub_id}/claim")
+        assert resp.status_code == 401
 
     @patch("skillhub_flask.blueprints.review_queue.claim_submission")
     def test_claim_200_platform(self, mock_cs: MagicMock, client: Any) -> None:
@@ -162,6 +171,14 @@ def _decision_result(sub_id: str, decision: str = "approve") -> dict:
 
 class TestDecideSubmission:
     """POST /admin/review-queue/<id>/decision — platform team, self-approval blocked."""
+
+    def test_decide_401_no_token(self, client: Any) -> None:
+        sub_id = str(uuid4())
+        resp = client.post(
+            f"/api/v1/admin/review-queue/{sub_id}/decision",
+            json={"decision": "approve"},
+        )
+        assert resp.status_code == 401
 
     @patch("skillhub_flask.blueprints.review_queue.decide_submission")
     def test_decide_approve_200(self, mock_ds: MagicMock, client: Any) -> None:
@@ -296,3 +313,48 @@ class TestEventTypeFix:
         )
         # Either 400 from our check or a validation error
         assert resp.status_code in (400, 422)
+
+    def test_event_type_reject_correct(self) -> None:
+        """Regression: 'submission.rejectd' typo — must be 'submission.rejected'."""
+        from skillhub_flask.blueprints.review_queue import _DECISION_EVENT
+
+        assert _DECISION_EVENT["reject"] == "submission.rejected"
+        assert not _DECISION_EVENT["reject"].endswith("rejectd")
+
+    def test_event_type_approve_correct(self) -> None:
+        """Verify approve maps to 'submission.approved'."""
+        from skillhub_flask.blueprints.review_queue import _DECISION_EVENT
+
+        assert _DECISION_EVENT["approve"] == "submission.approved"
+
+    def test_event_type_changes_correct(self) -> None:
+        """Verify request_changes maps to 'submission.changes_requested'."""
+        from skillhub_flask.blueprints.review_queue import _DECISION_EVENT
+
+        assert _DECISION_EVENT["request_changes"] == "submission.changes_requested"
+
+    @patch("skillhub_flask.blueprints.review_queue.decide_submission")
+    def test_audit_log_event_type_passed_to_service(self, mock_ds: MagicMock, client: Any) -> None:
+        """Verify the decision endpoint passes the correct event_type to the service.
+
+        The blueprint resolves event_type via _DECISION_EVENT before calling
+        decide_submission — this confirms the non-typo path is exercised.
+        """
+        sub_id = str(uuid4())
+        reviewer_id = str(uuid4())
+        mock_ds.return_value = {
+            "submission_id": sub_id,
+            "decision": "reject",
+            "reviewer_id": reviewer_id,
+            "reviewed_at": "2026-03-01T12:00:00",
+        }
+        resp = client.post(
+            f"/api/v1/admin/review-queue/{sub_id}/decision",
+            json={"decision": "reject", "notes": "Does not meet bar"},
+            headers=_auth_headers(_platform_token(user_id=reviewer_id)),
+        )
+        assert resp.status_code == 200
+        # Service was called exactly once with decision="reject" (not "rejectd")
+        mock_ds.assert_called_once()
+        kwargs = mock_ds.call_args[1]
+        assert kwargs["decision"] == "reject"

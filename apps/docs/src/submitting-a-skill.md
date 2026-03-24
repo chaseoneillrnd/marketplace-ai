@@ -32,11 +32,17 @@ Claude reads the file, extracts the front matter and content, and calls the `sub
 
 ### Option 2: Web Interface
 
-1. Navigate to the **Submit** page on the SkillHub web marketplace
-2. Complete the 3-step wizard:
-   - **Step 1: Basic Info** -- Name, description, category, tags, content
-   - **Step 2: Division Declaration** -- Select which divisions should access this skill and provide a justification
-   - **Step 3: Review** -- Preview your submission before sending
+Navigate to the **Submit** page on the SkillHub web marketplace. Three submission modes are available:
+
+**Form Builder** (default) — a 4-step guided wizard:
+- **Step 1: Name & Description** -- Skill name and one-line description
+- **Step 2: Content** -- The full skill instructions (markdown)
+- **Step 3: Metadata** -- Category, tags, and division selection
+- **Step 4: Review** -- Live preview of the assembled SKILL.md before submitting
+
+**File Upload** -- Drag and drop an existing `SKILL.md` file. The form automatically parses the YAML front matter (name, description, category, triggers, divisions) and shows a validation summary before you submit.
+
+**MCP Sync** -- Connect a running MCP server URL, browse its exposed skills, and submit one directly without copying any files.
 
 ### Option 3: API
 

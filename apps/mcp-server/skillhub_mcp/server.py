@@ -11,15 +11,16 @@ from mcp.server.fastmcp import FastMCP
 from skillhub_mcp.api_client import APIClient
 from skillhub_mcp.config import MCPSettings
 from skillhub_mcp.tools.fork import fork_skill as _fork_skill
-from skillhub_mcp.tracing import setup_tracing
 from skillhub_mcp.tools.get_skill import get_skill as _get_skill
 from skillhub_mcp.tools.install import install_skill as _install_skill
 from skillhub_mcp.tools.list_installed import list_installed as _list_installed
+from skillhub_mcp.tools.login import login as _login
 from skillhub_mcp.tools.search import search_skills as _search_skills
 from skillhub_mcp.tools.status import get_submission_status as _get_submission_status
 from skillhub_mcp.tools.submit import submit_skill as _submit_skill
 from skillhub_mcp.tools.uninstall import uninstall_skill as _uninstall_skill
 from skillhub_mcp.tools.update import update_skill as _update_skill
+from skillhub_mcp.tracing import setup_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +35,41 @@ mcp = FastMCP(
 )
 
 
+# Shared HTTP client — connection pool reused across all tool calls.
+# Token is set per-call since different users may invoke tools concurrently.
+_shared_client = APIClient(base_url=settings.api_base_url)
+
+
 def _get_api_client(token: str | None = None) -> APIClient:
-    """Create an API client with the given bearer token."""
-    return APIClient(base_url=settings.api_base_url, token=token)
+    """Return the shared API client with the given bearer token."""
+    _shared_client.token = token
+    return _shared_client
 
 
 def _decode_token(token: str) -> dict[str, Any]:
     """Decode a JWT without verification (the API will verify)."""
     return jwt.decode(token, options={"verify_signature": False})  # type: ignore[no-any-return]
+
+
+# --- Tool 0: login ---
+
+
+@mcp.tool(
+    name="login",
+    description="Authenticate with SkillHub using stub credentials. "
+    "Returns a bearer token to pass to other tools. "
+    "Available users: alice (engineering-org, platform team), "
+    "bob (data-science-org), carol (security-org, security team), "
+    "dave (product-org), admin (engineering-org, platform+security), "
+    "test (engineering-org). Password for all is 'user'.",
+)
+async def login_tool(
+    username: str,
+    password: str = "user",
+) -> dict[str, Any]:
+    """Log in and get a bearer token."""
+    client = _get_api_client()
+    return await _login(username=username, password=password, api_client=client)
 
 
 # --- Tool 1: search_skills ---
@@ -86,16 +114,16 @@ async def search_skills_tool(
 
 @mcp.tool(
     name="get_skill",
-    description="Get full detail for a skill including content, versions, and metadata.",
+    description="Get full detail for a skill including author, install counts, "
+    "tags, trigger phrases, divisions, and embedded version content.",
 )
 async def get_skill_tool(
     slug: str,
-    version: str = "latest",
     token: str | None = None,
 ) -> dict[str, Any]:
-    """Get skill detail by slug and optional version."""
+    """Get skill detail by slug."""
     client = _get_api_client(token)
-    return await _get_skill(slug=slug, version=version, api_client=client)
+    return await _get_skill(slug=slug, api_client=client)
 
 
 # --- Tool 3: install_skill ---

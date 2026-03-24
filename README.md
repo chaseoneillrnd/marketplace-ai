@@ -12,7 +12,7 @@ Internal AI skills marketplace. Browse, install, review, share Claude skills.
 
 ```
 mise run install          # install all dependencies
-mise run db:up            # start postgres + redis
+mise run db:up            # start postgres
 mise run db:migrate       # run migrations
 mise run db:seed          # seed initial data
 mise run dev:api          # start API on :8000
@@ -30,7 +30,6 @@ Or via Docker: `docker compose up -d`
 | Backend | Flask/APIFlask + SQLAlchemy 2 + Alembic |
 | MCP Server | Python + FastMCP SDK |
 | Database | PostgreSQL 16 |
-| Cache | Redis 7 |
 | Monorepo | NX + mise |
 | Lint/Format | ruff + eslint + prettier |
 | Testing | pytest + Vitest |

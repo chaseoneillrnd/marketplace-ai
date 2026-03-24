@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class SortOption(enum.StrEnum):
@@ -70,6 +70,7 @@ class SkillVersionResponse(BaseModel):
     frontmatter: dict | None = None
     changelog: str | None = None
     published_at: datetime
+    divisions: list[str] = []
 
 
 class SkillVersionListItem(BaseModel):

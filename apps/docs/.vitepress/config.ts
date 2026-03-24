@@ -9,7 +9,7 @@ export default defineConfig({
     logo: '/logo.svg',
 
     nav: [
-      { text: 'Back to SkillHub', link: 'http://localhost:5173' },
+      { text: 'Back to SkillHub', link: process.env.SKILLHUB_APP_URL ?? 'http://localhost:5173' },
     ],
 
     sidebar: [

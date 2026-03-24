@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CATEGORIES, DIVISIONS, SORT_OPTIONS, INSTALL_LABELS, type SortOption, type SkillSummary } from '@skillhub/shared-types';
 import { useT } from '../context/ThemeContext';
+import { useAuth } from '../hooks/useAuth';
 import { useSkillBrowse } from '../hooks/useSkills';
 import { SkillCard } from '../components/SkillCard';
 import { SkeletonCard } from '../components/SkeletonCard';
@@ -14,12 +15,14 @@ import { DIVISION_COLORS } from '@skillhub/shared-types';
 export function FilteredView() {
   const C = useT();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const initialCat = searchParams.get('category') ?? 'All';
 
   const [cat, setCat] = useState(initialCat);
   const [sort, setSort] = useState<SortOption>('trending');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
   const [installFilter, setInstallFilter] = useState('All');
   const [selectedDivs, setSelectedDivs] = useState<string[]>([]);
   const [page, setPage] = useState(1);
@@ -30,6 +33,7 @@ export function FilteredView() {
     sort,
     install_method: installFilter !== 'All' ? installFilter : undefined,
     verified: verifiedOnly || undefined,
+    favorited: savedOnly || undefined,
     page,
     per_page: 20,
   });
@@ -235,18 +239,34 @@ export function FilteredView() {
 
           {section(
             'Quality',
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={verifiedOnly}
-                onChange={(e) => {
-                  setVerifiedOnly(e.target.checked);
-                  setPage(1);
-                }}
-                style={{ accentColor: C.accent }}
-              />
-              <span style={{ fontSize: '12px', color: C.muted }}>Verified only</span>
-            </label>,
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={verifiedOnly}
+                  onChange={(e) => {
+                    setVerifiedOnly(e.target.checked);
+                    setPage(1);
+                  }}
+                  style={{ accentColor: C.accent }}
+                />
+                <span style={{ fontSize: '12px', color: C.muted }}>Verified only</span>
+              </label>
+              {user && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={savedOnly}
+                    onChange={(e) => {
+                      setSavedOnly(e.target.checked);
+                      setPage(1);
+                    }}
+                    style={{ accentColor: C.accent }}
+                  />
+                  <span style={{ fontSize: '12px', color: C.muted }}>Saved only</span>
+                </label>
+              )}
+            </div>,
           )}
         </div>
       </div>
@@ -289,6 +309,20 @@ export function FilteredView() {
                 Verified
               </span>
             )}
+            {savedOnly && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  padding: '3px 10px',
+                  borderRadius: '99px',
+                  background: C.accentDim,
+                  color: C.accent,
+                  border: `1px solid ${C.accent}30`,
+                }}
+              >
+                Saved
+              </span>
+            )}
           </div>
         </div>
 
@@ -306,6 +340,7 @@ export function FilteredView() {
               setCat('All');
               clearDivs();
               setVerifiedOnly(false);
+              setSavedOnly(false);
               setInstallFilter('All');
             }}
           />
