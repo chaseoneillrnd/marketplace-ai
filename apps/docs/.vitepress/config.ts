@@ -4,12 +4,19 @@ export default defineConfig({
   base: '/docs/',
   title: 'SkillHub Docs',
   description: 'User documentation for the SkillHub AI Skills Marketplace',
+  appearance: 'dark',
+
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/docs/logo.svg' }],
+  ],
 
   themeConfig: {
-    logo: '/logo.svg',
+    siteTitle: 'SkillHub Docs',
 
     nav: [
-      { text: 'Back to SkillHub', link: process.env.SKILLHUB_APP_URL ?? 'http://localhost:5173' },
+      { text: 'Guide', link: '/getting-started' },
+      { text: 'Contributing', link: '/submitting-a-skill' },
+      { text: 'Back to SkillHub', link: 'http://localhost:5173/' },
     ],
 
     sidebar: [
@@ -45,5 +52,14 @@ export default defineConfig({
         ],
       },
     ],
+
+    outline: {
+      level: [2, 3],
+      label: 'On this page',
+    },
+
+    search: {
+      provider: 'local',
+    },
   },
 })

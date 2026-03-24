@@ -1,201 +1,167 @@
 # Getting Started
 
-SkillHub gives you three ways to install skills: the MCP Server (recommended for Claude Code users), the Claude Code CLI, and manual copy. This guide walks through each method.
+SkillHub is an internal marketplace — the MCP server and API run from this monorepo, not from a public registry. This guide walks through the three ways to install skills.
 
 ## Prerequisites
 
-Before you begin, make sure you have:
+- **Claude Code** installed
+- The SkillHub monorepo cloned and set up (`mise run init`)
+- Dev servers running (`mise run dev:all`)
+- A valid session (use stub auth locally — see [Authentication](#authentication) below)
 
-- **Claude Code** or **Claude Desktop** installed
-- Access to your organization's SkillHub instance (e.g., `https://skillhub.yourcompany.com`)
-- A valid SSO session (or dev credentials if running locally)
+## Authentication {#authentication}
+
+SkillHub uses JWT tokens for API access. In development, stub auth provides pre-configured test users:
+
+```bash
+# Get a dev token (password is always "user")
+curl -X POST http://localhost:8000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "user"}'
+```
+
+**Available dev users:**
+
+| Username | Division | Role | Admin? |
+|----------|----------|------|--------|
+| `alice` | Engineering Org | Staff Engineer | Yes (platform team) |
+| `bob` | Data Science Org | Senior Data Scientist | No |
+| `carol` | Security Org | Security Lead | No (security team) |
+| `dave` | Product Org | Senior PM | No |
+| `admin` | Engineering Org | Platform Lead | Yes (platform + security) |
+| `test` | Engineering Org | Senior Engineer | No |
+
+You can also list all dev users via `GET http://localhost:8000/auth/dev-users`.
+
+---
 
 ## Option 1: MCP Server (Recommended) {#mcp-server}
 
-The SkillHub MCP Server integrates directly with Claude Code and Claude Desktop, giving you 9 tools to search, install, manage, and submit skills without leaving your AI assistant.
+The SkillHub MCP Server integrates directly with Claude Code, giving you tools to search, install, manage, and submit skills without leaving your AI assistant.
 
-### Step 1: Install the MCP Server
+### Step 1: Start the MCP Server
 
-::: code-group
+The MCP server runs from the monorepo:
 
-```bash [npm (global)]
-npm install -g @skillhub/mcp-server
+```bash
+# Via mise (recommended)
+mise run dev:mcp
+
+# Or directly
+PYTHONPATH=apps/mcp-server:libs/python-common python -m skillhub_mcp.server
 ```
 
-```bash [npx (no install)]
-npx @skillhub/mcp-server
-```
-
-:::
+The server starts on `localhost:8001` and connects to the API at `localhost:8000`.
 
 ### Step 2: Configure Claude Code
 
 Add the SkillHub MCP server to your Claude Code configuration:
 
 ```json
-// ~/.claude/mcp_servers.json
+// .mcp.json (project-level) or ~/.claude/mcp_servers.json (global)
 {
-  "skillhub": {
-    "command": "npx",
-    "args": ["@skillhub/mcp-server"],
-    "env": {
-      "SKILLHUB_API_URL": "https://skillhub.yourcompany.com/api/v1",
-      "SKILLHUB_TOKEN": "${SKILLHUB_JWT_TOKEN}"
+  "mcpServers": {
+    "skillhub": {
+      "command": "python",
+      "args": ["-m", "skillhub_mcp.server"],
+      "env": {
+        "PYTHONPATH": "apps/mcp-server:libs/python-common",
+        "SKILLHUB_MCP_API_BASE_URL": "http://localhost:8000"
+      }
     }
   }
 }
 ```
 
-::: tip Local Development
-For local development, use `http://localhost:8000/api/v1` as the API URL. You can obtain a dev JWT token via:
-
-```bash
-curl -X POST http://localhost:8000/auth/token \
-  -d "username=test&password=user"
-```
+::: tip Configuration
+The MCP server reads settings from `SKILLHUB_MCP_*` environment variables:
+- `SKILLHUB_MCP_API_BASE_URL` — API endpoint (default: `http://localhost:8000`)
+- `SKILLHUB_MCP_HOST` — Server bind address (default: `127.0.0.1`)
+- `SKILLHUB_MCP_PORT` — Server port (default: `8001`)
+- `SKILLHUB_MCP_SKILLS_DIR` — Where to write SKILL.md files (default: `~/.claude/skills`)
 :::
 
-### Step 3: Verify the Connection
+### Step 3: Authenticate
 
-Restart Claude Code, then ask Claude:
+In Claude Code, ask Claude to log in:
+
+```
+Log in to SkillHub as alice
+```
+
+Claude will call the `login` tool which authenticates against the API and stores the bearer token for subsequent requests.
+
+### Step 4: Search and Install
 
 ```
 Search SkillHub for code review skills
 ```
 
-If configured correctly, Claude will use the `search_skills` MCP tool and return matching results from the marketplace.
-
-### Step 4: Install a Skill
-
-Once you find a skill you want, install it directly:
-
 ```
 Install the pr-review-assistant skill from SkillHub
 ```
 
-Claude will call `install_skill` with the skill slug. The MCP server:
-
-1. Checks your division has access to the skill
-2. Downloads the latest version content
-3. Writes the `SKILL.md` file to `.claude/skills/<slug>/SKILL.md`
-4. Records the installation in the SkillHub API
+The MCP server will check your division has access, download the skill content, write `SKILL.md` to your local `.claude/skills/` directory, and record the install in the API.
 
 ### Available MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `search_skills` | Search the marketplace by keyword, category, or division |
-| `get_skill` | Get full detail for a specific skill by slug |
-| `install_skill` | Install a skill to your local `.claude/skills/` directory |
-| `update_skill` | Detect and update stale installed skills |
-| `list_installed` | View all installed skills with staleness indicator |
+| `login` | Authenticate with SkillHub (stub auth in dev) |
+| `search_skills` | Search by keyword, category, division, or filter |
+| `get_skill` | Get full detail for a skill by slug |
+| `install_skill` | Install a skill to `.claude/skills/` with division enforcement |
+| `update_skill` | Update an installed skill to the latest version |
+| `uninstall_skill` | Remove a skill locally and record the uninstall |
+| `list_installed` | View installed skills with staleness indicator |
 | `fork_skill` | Fork a skill to create a division-specific variant |
-| `submit_skill` | Submit a SKILL.md for review without leaving the editor |
-| `check_submission_status` | Check your submission's pipeline status |
+| `submit_skill` | Submit a SKILL.md for review |
+| `get_submission_status` | Check your submission's pipeline status |
 
 ---
 
-## Option 2: Claude Code CLI {#claude-cli}
+## Option 2: Web UI {#web-ui}
 
-If you prefer direct CLI commands over natural language, you can use the Claude Code skill management commands:
+Browse and manage skills through the web marketplace at [localhost:5173](http://localhost:5173).
 
-### Install a Skill
+### Install from the Web
 
-```bash
-claude skill install pr-review-assistant
-```
+1. Browse or search for a skill
+2. Click into the skill detail page
+3. Click **Install** and follow the instructions for your preferred method
+4. The detail page shows the `SKILL.md` content you can copy manually
 
-This command resolves the slug against the SkillHub API, checks division access, and writes the skill file.
+### Track Your Installs
 
-### List Installed Skills
-
-```bash
-claude skill list
-```
-
-### Update a Skill
-
-```bash
-claude skill update pr-review-assistant
-```
-
-### Uninstall a Skill
-
-```bash
-claude skill uninstall pr-review-assistant
-```
-
-::: info
-The CLI commands interact with the same SkillHub API as the MCP server. You need the same environment variables configured (`SKILLHUB_API_URL`, `SKILLHUB_TOKEN`).
-:::
+Your installed skills, favorites, and followed authors are tracked in your profile. The web UI shows version staleness indicators when newer versions are available.
 
 ---
 
-## Option 3: Using via Cline {#cline}
-
-Cline supports MCP servers through its configuration panel.
-
-### Step 1: Open Cline Settings
-
-In VS Code, open the Cline extension sidebar and navigate to **Settings > MCP Servers**.
-
-### Step 2: Add the SkillHub Server
-
-Click **Add Server** and enter:
-
-| Field | Value |
-|-------|-------|
-| Name | `skillhub` |
-| Command | `npx` |
-| Args | `@skillhub/mcp-server` |
-| Environment | `SKILLHUB_API_URL=https://skillhub.yourcompany.com/api/v1` |
-
-### Step 3: Use Skills
-
-Once connected, you can ask Cline to search and install skills just as you would in Claude Code. The MCP tools are available in Cline's tool palette.
-
----
-
-## Option 4: Manual Installation {#manual}
+## Option 3: Manual Installation {#manual}
 
 You can always install a skill by copying its content directly.
 
 ### Step 1: Find the Skill
 
-Browse the SkillHub web marketplace at your organization's URL, or use the API:
+Browse the web marketplace or use the API:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  https://skillhub.yourcompany.com/api/v1/skills/pr-review-assistant
+  http://localhost:8000/api/v1/skills/pr-review-assistant
 ```
 
-### Step 2: Copy the Content
-
-On the skill detail page, go to the **Install** tab and click **Copy SKILL.md**. Alternatively, copy the `content` field from the API response.
-
-### Step 3: Write the File
+### Step 2: Write the File
 
 Create the skill directory and file:
 
 ```bash
 mkdir -p .claude/skills/pr-review-assistant
-cat > .claude/skills/pr-review-assistant/SKILL.md << 'EOF'
----
-name: PR Review Assistant
-description: Thorough pull request reviews with actionable feedback
-triggers:
-  - review this PR
-  - review pull request
-  - code review
----
-
-(skill content here)
-EOF
+# Paste the skill content into SKILL.md
 ```
 
-### Step 4: Verify
+### Step 3: Verify
 
-Start a new Claude Code session. The skill is now loaded into Claude's context when you use one of its trigger phrases.
+Start a new Claude Code session. The skill loads into Claude's context when you use one of its trigger phrases.
 
 ---
 
@@ -208,7 +174,7 @@ When you install a skill (via any method):
 3. **Claude Code loads the skill** on next session start, injecting it into the context window when a trigger phrase is matched
 
 ::: warning Division Access
-Skills are scoped to organizational divisions. If you try to install a skill that your division does not have access to, the installation will be blocked. You can request access through the web UI or via the API.
+Skills are scoped to organizational divisions. If you try to install a skill that your division does not have access to, the installation will be blocked. Request access through the web UI or contact your division admin.
 :::
 
 ## Next Steps

@@ -110,7 +110,7 @@ export function Nav({ onAuthOpen }: Props) {
         {navItem('Browse', '/browse')}
         {navItem('Filtered', '/filtered')}
         <a
-          href="/docs/"
+          href="http://localhost:5174/docs/"
           target="_blank"
           rel="noopener noreferrer"
           style={{

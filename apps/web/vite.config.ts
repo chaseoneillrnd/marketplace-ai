@@ -14,12 +14,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      '/docs': {
-        target: 'http://localhost:5174',
-        changeOrigin: true,
-      },
-    },
   },
   test: {
     globals: true,
