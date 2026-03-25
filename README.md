@@ -118,4 +118,5 @@ mise.toml               # Task runner config
 docker-compose.yml      # Local dev services
 nx.json                 # NX workspace config
 ```
-https://claude.ai/share/a45b37b3-3765-496d-9a7c-96cfe221112d
+[https://claude.ai/share/a45b37b3-3765-496d-9a7c-96cfe221112d
+](https://docs.google.com/presentation/d/1I5tiGXp7dxXKWdgJCnxrRwT0I9SmF-ig/edit?usp=drivesdk&ouid=102060265013781988185&rtpof=true&sd=true)
