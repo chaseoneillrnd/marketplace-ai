@@ -5,15 +5,15 @@ description: Use when implementing error handling across the API, frontend, or M
 
 # Error Handling Patterns
 
-## FastAPI
+## Flask API
 
 ```python
-from fastapi import HTTPException
+from flask import abort
 
-raise HTTPException(status_code=404, detail="Skill not found")
-raise HTTPException(status_code=403, detail="Division not authorized")
-raise HTTPException(status_code=409, detail="Already exists")
-raise HTTPException(status_code=422, detail="Validation error")
+abort(404, description="Skill not found")
+abort(403, description="Division not authorized")
+abort(409, description="Already exists")
+abort(422, description="Validation error")
 ```
 
 ## React API Client
@@ -39,13 +39,13 @@ return {"success": False, "error": "division_restricted",
 ## Error Response Schema
 
 ```json
-{"detail": "Human-readable error message"}
+{"description": "Human-readable error message"}
 ```
 
-For validation: `{"detail": [{"loc": ["body", "field"], "msg": "...", "type": "..."}]}`
+For validation: `{"messages": {"field": ["Error message"]}}`
 
 ## References
 
-- API dependencies: `apps/api/skillhub/dependencies.py`
+- Auth blueprint: `apps/api/skillhub_flask/blueprints/auth.py`
 - API client: `apps/web/src/lib/api.ts`
 - MCP tools: `apps/mcp-server/skillhub_mcp/tools/`

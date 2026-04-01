@@ -12,6 +12,7 @@ from opentelemetry import trace
 
 from skillhub_mcp.api_client import APIClient
 from skillhub_mcp.config import MCPSettings
+from skillhub_mcp.tools.install import _is_valid_slug
 
 logger = logging.getLogger(__name__)
 _tracer = trace.get_tracer(__name__)
@@ -26,6 +27,11 @@ async def uninstall_skill(
     """Uninstall a skill by removing its local directory and recording via API."""
     with _tracer.start_as_current_span("uninstall_skill") as span:
         span.set_attribute("skill.slug", slug)
+
+        # Slug validation — prevent path traversal (especially critical for rmtree)
+        if not _is_valid_slug(slug):
+            span.set_attribute("error", True)
+            return {"success": False, "error": "invalid_slug"}
 
         skill_dir = Path(settings.skills_dir) / slug
         if not skill_dir.exists():

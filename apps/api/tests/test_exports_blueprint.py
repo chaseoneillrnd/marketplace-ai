@@ -47,15 +47,24 @@ def _regular_token() -> str:
 class TestCreateExport:
     """POST /admin/exports — bug fixes: JSON body, status='pending'."""
 
+    @patch("skillhub_flask.blueprints.exports.get_export_status")
+    @patch("skillhub_flask.blueprints.exports.run_export_sync")
     @patch("skillhub_flask.blueprints.exports.request_export")
-    def test_create_export_accepts_json_body(self, mock_re: MagicMock, client: Any) -> None:
+    def test_create_export_accepts_json_body(self, mock_re: MagicMock, mock_sync: MagicMock, mock_status: MagicMock, client: Any) -> None:
         """Bug #1: endpoint accepts JSON body (not query params)."""
         job_id = str(uuid4())
         mock_re.return_value = {
             "id": job_id,
-            "status": "queued",  # service returns "queued"
+            "status": "queued",
             "scope": "installs",
             "format": "csv",
+        }
+        mock_status.return_value = {
+            "id": job_id,
+            "status": "done",
+            "scope": "installs",
+            "format": "csv",
+            "download_url": f"/exports/{job_id}.csv",
         }
         resp = client.post(
             "/api/v1/admin/exports",
@@ -67,15 +76,20 @@ class TestCreateExport:
         assert data["id"] == job_id
         mock_re.assert_called_once()
 
+    @patch("skillhub_flask.blueprints.exports.get_export_status")
+    @patch("skillhub_flask.blueprints.exports.run_export_sync")
     @patch("skillhub_flask.blueprints.exports.request_export")
-    def test_create_export_status_pending_not_queued(self, mock_re: MagicMock, client: Any) -> None:
+    def test_create_export_status_pending_not_queued(self, mock_re: MagicMock, mock_sync: MagicMock, mock_status: MagicMock, client: Any) -> None:
         """Bug #3: response status is 'pending', not 'queued'."""
+        job_id = str(uuid4())
         mock_re.return_value = {
-            "id": str(uuid4()),
+            "id": job_id,
             "status": "queued",
             "scope": "installs",
             "format": "csv",
         }
+        # Simulate sync export failing to complete — status stays queued
+        mock_status.return_value = None
         resp = client.post(
             "/api/v1/admin/exports",
             json={"scope": "installs", "format": "csv"},
@@ -86,12 +100,21 @@ class TestCreateExport:
         assert data["status"] == "pending"
         assert data["status"] != "queued"
 
+    @patch("skillhub_flask.blueprints.exports.get_export_status")
+    @patch("skillhub_flask.blueprints.exports.run_export_sync")
     @patch("skillhub_flask.blueprints.exports.request_export")
-    def test_create_export_with_dates(self, mock_re: MagicMock, client: Any) -> None:
+    def test_create_export_with_dates(self, mock_re: MagicMock, mock_sync: MagicMock, mock_status: MagicMock, client: Any) -> None:
         """JSON body can include optional start_date and end_date."""
+        job_id = str(uuid4())
         mock_re.return_value = {
-            "id": str(uuid4()),
+            "id": job_id,
             "status": "pending",
+            "scope": "installs",
+            "format": "csv",
+        }
+        mock_status.return_value = {
+            "id": job_id,
+            "status": "done",
             "scope": "installs",
             "format": "csv",
         }

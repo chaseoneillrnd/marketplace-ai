@@ -2,17 +2,11 @@
 
 Internal AI skills marketplace. Browse, install, review, share Claude skills.
 
-## Demo
-
-![App Demo](app-demo.gif)
-
-![Tests](tests.gif)
-
 ## Quick Start
 
 ```
 mise run install          # install all dependencies
-mise run db:up            # start postgres + redis
+mise run db:up            # start postgres
 mise run db:migrate       # run migrations
 mise run db:seed          # seed initial data
 mise run dev:api          # start API on :8000
@@ -27,10 +21,9 @@ Or via Docker: `docker compose up -d`
 | Layer | Technology |
 |---|---|
 | Frontend | React 18 + Vite + TypeScript |
-| Backend | FastAPI + SQLAlchemy 2 + Alembic |
+| Backend | Flask/APIFlask + SQLAlchemy 2 + Alembic |
 | MCP Server | Python + FastMCP SDK |
 | Database | PostgreSQL 16 |
-| Cache | Redis 7 |
 | Monorepo | NX + mise |
 | Lint/Format | ruff + eslint + prettier |
 | Testing | pytest + Vitest |
@@ -102,7 +95,7 @@ mise run quality-gate     # all of the above + tests
 
 ```
 apps/
-  api/                  # FastAPI backend
+  api/                  # Flask/APIFlask backend
   web/                  # React + Vite frontend
   mcp-server/           # MCP server for Claude Code
 libs/

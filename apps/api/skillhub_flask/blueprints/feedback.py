@@ -33,13 +33,47 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("feedback", __name__)
 
 
+@bp.route("/api/v1/feedback", methods=["GET"])
+def list_public_feedback() -> tuple:
+    """Public feedback list — shows all non-archived feedback with upvote counts."""
+    db = get_db()
+
+    category = request.args.get("category")
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+
+    # Clamp pagination
+    page = max(1, page)
+    per_page = max(1, min(100, per_page))
+
+    items, total = list_feedback(
+        db,
+        category=category,
+        status=None,  # list_feedback has no archived-exclusion built in; filter below
+        page=page,
+        per_page=per_page,
+    )
+
+    # Exclude archived items (service doesn't filter these out by default)
+    non_archived = [i for i in items if i.get("status") != "archived"]
+
+    response = FeedbackListResponse(
+        items=[FeedbackResponse(**i) for i in non_archived],
+        total=total,
+        page=page,
+        per_page=per_page,
+        has_more=(page * per_page) < total,
+    )
+    return jsonify(response.model_dump(mode="json")), 200
+
+
 @bp.route("/api/v1/feedback", methods=["POST"])
 def submit_feedback() -> tuple:
     """Submit feedback. Any authenticated user."""
     db = get_db()
     current_user: dict[str, Any] = g.current_user
 
-    body = FeedbackCreate(**request.get_json(force=True))
+    body = FeedbackCreate.model_validate(request.get_json(force=True) or {})
 
     result = create_feedback(
         db,

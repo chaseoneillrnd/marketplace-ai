@@ -1,23 +1,24 @@
 /**
- * SkillHub design tokens mapped to VitePress CSS custom properties.
- * Colors sourced from apps/web/src/lib/theme.ts (DARK + LIGHT).
+ * SkillHub VitePress theme — sourced from design/tokens.json and docs/color-system.md.
+ * Font: Outfit (matches React app). Mono: JetBrains Mono.
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 :root {
-  /* Brand / accent */
+  /* Brand / accent — from color-system light mode */
   --vp-c-brand-1: #2a5de8;
   --vp-c-brand-2: #4b7dff;
   --vp-c-brand-3: #6b96ff;
   --vp-c-brand-soft: rgba(42, 93, 232, 0.09);
 
-  /* Typography — match the React app */
-  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans',
-    'Helvetica Neue', sans-serif;
+  /* Typography — Outfit to match the React app */
+  --vp-font-family-base: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
   --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco,
     Consolas, 'Courier New', monospace;
 
-  /* Light mode surfaces (default) */
+  /* Light mode surfaces — from tokens.json light theme */
   --vp-c-bg: #f0f4f9;
   --vp-c-bg-soft: #ffffff;
   --vp-c-bg-mute: #f5f8fc;
@@ -26,13 +27,16 @@
   --vp-c-text-3: #9aaec4;
   --vp-c-divider: #dde5ef;
 
-  /* Accent state colors */
-  --vp-c-green-1: #0b7a57;
-  --vp-c-green-soft: rgba(11, 122, 87, 0.09);
-  --vp-c-yellow-1: #8a5400;
-  --vp-c-yellow-soft: rgba(138, 84, 0, 0.09);
+  /* Accent state colors — light mode */
+  --vp-c-green-1: #0fa878;
+  --vp-c-green-soft: rgba(15, 168, 120, 0.09);
+  --vp-c-yellow-1: #c07800;
+  --vp-c-yellow-soft: rgba(192, 120, 0, 0.09);
   --vp-c-red-1: #d63040;
   --vp-c-red-soft: rgba(214, 48, 64, 0.09);
+
+  /* Sidebar — slightly narrower to match SkillHub admin sidebar */
+  --vp-sidebar-width: 240px;
 }
 
 .dark {
@@ -41,6 +45,7 @@
   --vp-c-brand-3: #8aafff;
   --vp-c-brand-soft: rgba(75, 125, 255, 0.12);
 
+  /* Dark mode surfaces — from tokens.json dark theme */
   --vp-c-bg: #07111f;
   --vp-c-bg-soft: #0c1825;
   --vp-c-bg-mute: #111f30;
@@ -57,8 +62,50 @@
   --vp-c-red-soft: rgba(239, 80, 96, 0.10);
 }
 
-/* Code blocks */
+/* Code blocks — match tokens.json codeBg */
 .dark .vp-code-group .tabs label,
 .dark div[class*='language-'] {
   background-color: #060e1a;
+}
+
+div[class*='language-'] {
+  background-color: #e8edf5;
+}
+
+/* Tip/warning/info custom containers — use SkillHub accent palette */
+.custom-block.tip {
+  border-color: var(--vp-c-brand-1);
+}
+
+.custom-block.warning {
+  border-color: var(--vp-c-yellow-1);
+}
+
+.custom-block.danger {
+  border-color: var(--vp-c-red-1);
+}
+
+.custom-block.info {
+  border-color: var(--vp-c-brand-2);
+}
+
+/* Nav brand — match SkillHub nav styling */
+.VPNavBarTitle .title {
+  font-weight: 600;
+}
+
+/* Scrollbar — match tokens.json */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e3248;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c8d5e6;
+  border-radius: 2px;
 }

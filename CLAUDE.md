@@ -10,7 +10,7 @@ Built as an NX monorepo with Flask/APIFlask backend, React frontend, and MCP ser
 - **Frontend:** React 18 + Vite + TypeScript
 - **Backend:** Flask/APIFlask (Python 3.12) + SQLAlchemy 2 + Alembic
 - **MCP Server:** Python + mcp SDK
-- **Database:** PostgreSQL 16 + Redis 7
+- **Database:** PostgreSQL 16
 - **Monorepo:** NX + mise
 - **Testing:** pytest + Vitest (coverage gates ≥80%)
 - **Lint/Format:** ruff + eslint + prettier
@@ -51,6 +51,7 @@ Rules:
 - `skillhub-design.md` — Approved design document
 - `skillhub-technical-guide.md` — Complete implementation guide (29 prompts across 11 stages)
 - `skillhub-diagrams.md` — Visual architecture companion with Mermaid diagrams
+- `docs/ai-agent-context/codebase-map.md` — Navigational codebase index for agent context
 
 ## Development Workflow
 
@@ -73,5 +74,4 @@ Skills are installed in `.claude/skills/` and guide structured development.
 - `mise run test:api` — Run API tests
 - `mise run test:web` — Run web tests
 - `mise run quality-gate` — Full CI gate locally
-- `mise run db:migrate` — Run database migrations
 - `mise run db:seed` — Seed database

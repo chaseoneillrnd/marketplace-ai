@@ -15,7 +15,6 @@ import jwt
 from flask import Blueprint, current_app, jsonify, request
 from pydantic import BaseModel
 
-from skillhub_flask.validation import validated_body
 
 logger = logging.getLogger(__name__)
 

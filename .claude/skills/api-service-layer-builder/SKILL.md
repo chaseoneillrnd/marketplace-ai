@@ -10,7 +10,7 @@ description: Use when creating service modules in apps/api/skillhub/services/
 ```python
 # apps/api/skillhub/services/my_service.py
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException
+from flask import abort
 
 def list_items(db: Session, user: dict, page: int = 1, page_size: int = 20):
     query = db.query(MyModel).options(joinedload(MyModel.related))
@@ -21,17 +21,17 @@ def list_items(db: Session, user: dict, page: int = 1, page_size: int = 20):
 def get_item(db: Session, item_id: str):
     item = db.query(MyModel).filter(MyModel.id == item_id).first()
     if not item:
-        raise HTTPException(404, "Item not found")
+        abort(404, description="Item not found")
     return item
 ```
 
 ## Rules
 
 - Services accept `db: Session` as first param
-- Services raise `HTTPException` for errors
+- Services use `abort(status_code, description=...)` for errors
 - Use `joinedload`/`selectinload` to prevent N+1
 - Write audit_log entries for mutations
-- Keep business logic here, not in routers
+- Keep business logic here, not in blueprints
 
 ## References
 

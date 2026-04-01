@@ -16,16 +16,19 @@ _tracer = trace.get_tracer(__name__)
 
 async def get_skill(
     slug: str,
-    version: str = "latest",
     *,
     api_client: APIClient,
 ) -> dict[str, Any]:
-    """Fetch full skill detail from the SkillHub API."""
+    """Fetch full skill detail from the SkillHub API.
+
+    Calls the detail endpoint which returns author info, install counts,
+    tags, trigger phrases, and embedded version content — not just the
+    bare version payload.
+    """
     with _tracer.start_as_current_span("get_skill") as span:
         span.set_attribute("skill.slug", slug)
-        span.set_attribute("skill.version", version)
         try:
-            response = await api_client.get(f"/api/v1/skills/{slug}/versions/{version}")
+            response = await api_client.get(f"/api/v1/skills/{slug}")
             return response.json()  # type: ignore[no-any-return]
         except httpx.HTTPStatusError as exc:
             span.set_attribute("error", True)

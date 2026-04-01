@@ -47,6 +47,10 @@ def _regular_token() -> str:
 class TestAnalyticsSummary:
     """GET /admin/analytics/summary — platform team only."""
 
+    def test_summary_401_no_token(self, client: Any) -> None:
+        resp = client.get("/api/v1/admin/analytics/summary")
+        assert resp.status_code == 401
+
     @patch("skillhub_flask.blueprints.analytics.get_summary")
     def test_summary_200_platform(self, mock_gs: MagicMock, client: Any) -> None:
         mock_gs.return_value = {
@@ -104,6 +108,10 @@ class TestAnalyticsSummary:
 class TestAnalyticsTimeSeries:
     """GET /admin/analytics/time-series — platform team only."""
 
+    def test_time_series_401_no_token(self, client: Any) -> None:
+        resp = client.get("/api/v1/admin/analytics/time-series")
+        assert resp.status_code == 401
+
     @patch("skillhub_flask.blueprints.analytics.get_time_series")
     def test_time_series_200_platform(self, mock_ts: MagicMock, client: Any) -> None:
         mock_ts.return_value = [
@@ -149,6 +157,10 @@ class TestAnalyticsTimeSeries:
 class TestAnalyticsFunnel:
     """GET /admin/analytics/submission-funnel — platform team only."""
 
+    def test_funnel_401_no_token(self, client: Any) -> None:
+        resp = client.get("/api/v1/admin/analytics/submission-funnel")
+        assert resp.status_code == 401
+
     @patch("skillhub_flask.blueprints.analytics.get_submission_funnel")
     def test_funnel_200_platform(self, mock_sf: MagicMock, client: Any) -> None:
         mock_sf.return_value = {
@@ -172,6 +184,29 @@ class TestAnalyticsFunnel:
         assert data["approval_rate"] == 0.83
         mock_sf.assert_called_once()
 
+    @patch("skillhub_flask.blueprints.analytics.get_submission_funnel")
+    def test_funnel_custom_days(self, mock_sf: MagicMock, client: Any) -> None:
+        mock_sf.return_value = {
+            "submitted": 20,
+            "gate1_passed": 18,
+            "gate2_passed": 15,
+            "approved": 12,
+            "published": 10,
+            "gate1_rate": 0.9,
+            "gate2_rate": 0.83,
+            "approval_rate": 0.8,
+            "period_days": 7,
+        }
+        resp = client.get(
+            "/api/v1/admin/analytics/submission-funnel?days=7",
+            headers=_auth_headers(_platform_token()),
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["period_days"] == 7
+        call_kwargs = mock_sf.call_args
+        assert call_kwargs[1]["days"] == 7
+
     def test_funnel_403_regular(self, client: Any) -> None:
         resp = client.get(
             "/api/v1/admin/analytics/submission-funnel",
@@ -187,6 +222,10 @@ class TestAnalyticsFunnel:
 
 class TestAnalyticsTopSkills:
     """GET /admin/analytics/top-skills — platform team only."""
+
+    def test_top_skills_401_no_token(self, client: Any) -> None:
+        resp = client.get("/api/v1/admin/analytics/top-skills")
+        assert resp.status_code == 401
 
     @patch("skillhub_flask.blueprints.analytics.get_top_skills")
     def test_top_skills_200_platform(self, mock_top: MagicMock, client: Any) -> None:

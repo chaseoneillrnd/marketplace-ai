@@ -109,6 +109,26 @@ export function Nav({ onAuthOpen }: Props) {
         {navItem('Discover', '/')}
         {navItem('Browse', '/browse')}
         {navItem('Filtered', '/filtered')}
+        <a
+          href="http://localhost:5174/docs/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 400,
+            color: C.muted,
+            padding: '4px 10px',
+            borderRadius: '6px',
+            transition: 'all 0.15s',
+            textDecoration: 'none',
+          }}
+        >
+          Docs
+        </a>
+        {navItem('Feedback', '/feedback')}
         {user?.is_platform_team && (
           <NavLink
             to="/admin"

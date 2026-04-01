@@ -25,7 +25,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'cd ../.. && PYTHONPATH="apps/api:apps/fast-api:libs/db:libs/python-common" SKILLHUB_STUB_AUTH_ENABLED=true flask --app skillhub_flask.app:create_app run --port 8000',
+      command: 'cd ../.. && PYTHONPATH="apps/api:libs/db:libs/python-common" SKILLHUB_STUB_AUTH_ENABLED=true flask --app skillhub_flask.app:create_app run --port 8000',
       port: 8000,
       reuseExistingServer: true,
       timeout: 30_000,

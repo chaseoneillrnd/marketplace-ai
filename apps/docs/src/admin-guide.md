@@ -1,6 +1,6 @@
 # Admin Guide
 
-This guide covers SkillHub's administrative capabilities for Platform Team and Security Team members. All admin functions are available via the API, with a web dashboard planned for Phase 2.
+This guide covers SkillHub's administrative capabilities for Platform Team and Security Team members. All admin functions are available via both the web admin panel (at `/admin`) and the API.
 
 ## Admin Roles
 
@@ -77,7 +77,9 @@ Division enforcement is **server-side only**. The API checks the requesting user
 
 ## Feature Flags
 
-Feature flags provide progressive rollout control and kill switches for platform features.
+Feature flags provide progressive rollout control and kill switches for platform features. The **Feature Flags** section of the admin panel (`/admin/flags`) provides a full management UI: a list of all flags with global ON/OFF toggles, a detail panel for per-division overrides, and the ability to create or delete flags without touching the API directly.
+
+In the detail panel, each division can be set to one of three states: **Inherit** (uses the global value), **Enable** (force-on for that division), or **Disable** (force-off for that division). Division override dots are shown on the list for flags that have any active overrides.
 
 ### Flag Structure
 
@@ -326,6 +328,8 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 
 ## Skill Moderation
 
+The **Skills** section of the admin panel (`/admin/skills`) shows all published skills in a searchable, paginated table. Each row displays the skill name, slug, category, version, install count, and status (published, featured, deprecated, or removed). Per-row action buttons let Platform Team members feature/unfeature or deprecate a skill, and Security Team members can remove a skill with a confirmation dialog.
+
 Admins can moderate published skills through three actions:
 
 ### Feature a Skill
@@ -369,9 +373,14 @@ Removing a skill is immediate and affects all users. Users who have already inst
 
 ## Analytics Dashboard
 
-::: info Coming in Phase 2
-The analytics dashboard web UI is planned for Phase 2. The data model already captures all metrics needed. In the meantime, key metrics are available via the API.
-:::
+The admin dashboard at `/admin` displays live platform metrics. The dashboard page shows:
+
+- **Daily Active Users, New Installs (7d), Active Installs, Published Skills, Pending Reviews, and Submission Pass Rate** as real-time stat cards
+- **Installs Over Time** — an area chart showing install and user trends
+- **By Division** — per-division install breakdown
+- **Submission Funnel (30d)** — conversion from submitted through gate1, gate2, approved, and published
+
+Key metrics are also available directly via the API:
 
 ### Available Metrics
 
@@ -400,6 +409,12 @@ curl -H "Authorization: Bearer $TOKEN" \
 | Skill submission rate | >= 5 new skills per month | Submission count by month |
 | Gate 3 review completion time | < 48 hours | Time from gate3_pending to approve/reject |
 | User satisfaction (NPS) | >= 40 | Feedback submissions categorized as praise vs. complaint |
+
+## Data Export
+
+The **Export** section of the admin panel (`/admin/export`) lets you download platform data without writing API queries. Choose a scope (Installs, Submissions, Users, or Analytics), a format (CSV or JSON), and a date range. Date presets — Today, Yesterday, Last 7 Days, Last 30 Days, Last 90 Days, Year to Date, and All Time — fill the date fields automatically, or you can set a custom range. Each admin account can request up to 5 exports per day.
+
+---
 
 ## Next Steps
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,13 @@ from skillhub_mcp.config import MCPSettings
 
 logger = logging.getLogger(__name__)
 _tracer = trace.get_tracer(__name__)
+
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
+
+
+def _is_valid_slug(slug: str) -> bool:
+    """Validate slug is safe for filesystem paths (no traversal)."""
+    return bool(slug) and len(slug) >= 2 and _SLUG_RE.match(slug) is not None
 
 
 async def install_skill(
@@ -32,6 +40,12 @@ async def install_skill(
     with _tracer.start_as_current_span("install_skill") as span:
         span.set_attribute("skill.slug", slug)
         span.set_attribute("skill.version", version)
+
+        # 0. Slug validation — prevent path traversal
+        if not _is_valid_slug(slug):
+            span.set_attribute("error", True)
+            span.set_attribute("error.type", "invalid_slug")
+            return {"success": False, "error": "invalid_slug"}
 
         # 1. Fetch the skill version from the API
         try:
@@ -86,4 +100,7 @@ async def install_skill(
             "success": True,
             "version": resolved_version,
             "path": str(skill_path),
+            "divisions": skill_divisions,
+            "restart_required": True,
+            "note": "Restart Claude Code to activate the installed skill.",
         }

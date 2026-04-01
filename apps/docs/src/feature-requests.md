@@ -6,10 +6,12 @@ SkillHub is built for the organization, and your feedback shapes its roadmap. Wh
 
 ### Via the Web Interface
 
-1. Click the **Feedback** button in the SkillHub navigation bar
-2. Select a category for your feedback
-3. Write a title and detailed description
-4. Submit
+1. Click **Feedback** in the SkillHub navigation bar (or go to `/feedback` directly)
+2. Select a category from the dropdown: Feature Request, Bug Report, Praise, or Complaint
+3. Write your feedback in the text area (minimum 20 characters)
+4. Click **Submit**
+
+Existing feedback items are shown below the form, organized by category tabs. You can upvote any item directly from the list.
 
 ### Via the API
 
@@ -18,7 +20,6 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "category": "feature_request",
-    "title": "Add skill dependency tracking",
     "body": "It would be useful to declare that Skill A depends on Skill B, so installing A automatically suggests installing B."
   }' \
   https://skillhub.yourcompany.com/api/v1/feedback
@@ -48,12 +49,14 @@ Every feedback submission is classified into one of four categories:
 
 ## Writing Effective Feedback
 
+The feedback form accepts a category and a free-text body. Pack as much context as you can into the body.
+
 ### Feature Requests
 
 Good feature requests explain the **problem**, not just the solution:
 
 ::: details Good Example
-**Title:** Support skill dependencies
+**Category:** Feature Request
 
 **Body:** When I install the "Full Code Review" skill, I also need the "Security Checklist" and "Performance Audit" skills installed for it to work properly. Currently I have to know this and install them manually. It would be helpful if skills could declare dependencies so that installing one automatically prompts to install its dependencies.
 
@@ -61,7 +64,7 @@ Good feature requests explain the **problem**, not just the solution:
 :::
 
 ::: details Weak Example
-**Title:** Add dependencies
+**Category:** Feature Request
 
 **Body:** Skills should have dependencies.
 
@@ -73,18 +76,19 @@ Good feature requests explain the **problem**, not just the solution:
 Include enough information for the team to reproduce the issue:
 
 ::: details Bug Report Template
-**Title:** MCP install fails for skills with spaces in the name
+**Category:** Bug Report
 
-**Steps to reproduce:**
+**Body:**
+MCP install fails for skills with spaces in the name.
+
+Steps to reproduce:
 1. Search for "Meeting Note Summarizer" via MCP
 2. Ask Claude to install it
 3. MCP tool returns error: "Invalid slug: meeting-note summarizer"
 
-**Expected:** Skill installs successfully (slug should be auto-sanitized)
-
-**Actual:** Installation fails with slug validation error
-
-**Environment:** Claude Code v1.2.3, macOS 14.5, MCP server v0.8.0
+Expected: Skill installs successfully (slug should be auto-sanitized)
+Actual: Installation fails with slug validation error
+Environment: Claude Code v1.2.3, macOS 14.5, MCP server v0.8.0
 :::
 
 ---
@@ -173,8 +177,6 @@ These items were identified during the PoC and are planned for the next phase. Y
 | Item | Category | Status |
 |------|----------|--------|
 | SSO Integration (Microsoft, Google, Okta) | Infrastructure | Ready to integrate |
-| Admin Web Dashboard | Feature | Implementation guide complete |
-| Analytics Dashboard | Feature | Data model ready |
 | Notification System | Feature | Planned for scale |
 | CI/CD Pipeline | Infrastructure | Pending deploy target |
 

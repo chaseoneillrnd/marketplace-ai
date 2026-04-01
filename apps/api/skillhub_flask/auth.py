@@ -100,3 +100,25 @@ def require_security_team(f: Any) -> Any:
 
     decorated._auth_required = True  # type: ignore[attr-defined]  # noqa: SLF001
     return decorated
+
+
+def require_flag(flag_key: str) -> Any:
+    """Decorator that returns 404 if a feature flag is disabled for the current user's division."""
+
+    def decorator(f: Any) -> Any:
+        @functools.wraps(f)
+        def decorated(*args: Any, **kwargs: Any) -> Any:
+            from skillhub_flask.db import get_db
+            from skillhub.services.flags import get_flags
+
+            user = getattr(g, "current_user", None)
+            division = user.get("division") if user else None
+            db = get_db()
+            flags = get_flags(db, user_division=division)
+            if not flags.get(flag_key, False):
+                abort(404)
+            return f(*args, **kwargs)
+
+        return decorated
+
+    return decorator

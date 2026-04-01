@@ -19,13 +19,12 @@ run = "npx nx run web:dev"
 [tasks."dev:api"]
 description = "Start API server"
 run = "flask --app skillhub_flask.app:create_app run --reload --host 0.0.0.0 --port 8000"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common", FLASK_DEBUG = "1" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common", FLASK_DEBUG = "1" }
 
 [tasks."dev:mcp"]
 description = "Start MCP server"
 run = "python -m skillhub_mcp.server"
-dir = "apps/mcp-server"
-env = { PYTHONPATH = "../../libs/python-common" }
+env = { PYTHONPATH = "apps/mcp-server:libs/python-common" }
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 
@@ -58,17 +57,17 @@ run = "npx vitest run --coverage --project web"
 [tasks."test:api"]
 description = "Run API tests"
 run = "python -m pytest apps/api/tests/ -v"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."test:api:coverage"]
 description = "Run API tests with coverage"
-run = "python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+run = "python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov=apps/api/skillhub_flask --cov-fail-under=80"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."test:mcp"]
 description = "Run MCP server tests"
 run = "python -m pytest apps/mcp-server/tests/ -v"
-env = { PYTHONPATH = "apps/mcp-server:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }
 
 [tasks."test:db"]
 description = "Run DB lib tests"
@@ -121,14 +120,14 @@ run = "npx tsc --noEmit -p apps/web/tsconfig.json"
 
 [tasks."typecheck:api"]
 description = "Python type check"
-run = "mypy apps/api/skillhub/ --strict"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+run = "mypy apps/api/skillhub/ apps/api/skillhub_flask/ --strict"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Database ──────────────────────────────────────────────────────────────────
 
 [tasks."db:up"]
 description = "Start database containers"
-run = "docker compose up -d postgres redis"
+run = "docker compose up -d postgres"
 
 [tasks."db:down"]
 description = "Stop database containers"
@@ -187,8 +186,8 @@ run = "docker compose exec postgres pg_dump -U skillhub -d skillhub --schema-onl
 
 [tasks."gen:openapi"]
 description = "Generate OpenAPI spec"
-run = "python -c \"from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))\" > specs/openapi.json"
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+run = "$(pyenv which python) -c \"from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))\" > specs/openapi.json"
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."gen:types"]
 description = "Generate TypeScript types from OpenAPI"
@@ -234,26 +233,32 @@ ruff check apps/ libs/
 echo "=== Format Check ==="
 ruff format --check apps/ libs/
 echo "=== Type Check: API ==="
-mypy apps/api/skillhub/ --strict
+mypy apps/api/skillhub/ apps/api/skillhub_flask/ --strict
 echo "=== Tests: API ==="
-python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
+python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov=apps/api/skillhub_flask --cov-fail-under=80
 echo "=== Tests: DB ==="
 python -m pytest libs/db/tests/ -v
+echo "=== Tests: Web ==="
+npx vitest run --project web
+echo "=== Tests: MCP ==="
+python -m pytest apps/mcp-server/tests/ -v
 echo "=== TypeScript Check ==="
 npx tsc --noEmit -p apps/web/tsconfig.json
+echo "=== Docs Build ==="
+cd apps/docs && npx vitepress build src && cd ../..
 echo "=== Quality gate complete ==="
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }
 
 [tasks."quality-gate:api"]
 description = "API-only quality gate"
 run = """
 ruff check apps/api/
 ruff format --check apps/api/
-mypy apps/api/skillhub/ --strict
-python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov-fail-under=80
+mypy apps/api/skillhub/ apps/api/skillhub_flask/ --strict
+python -m pytest apps/api/tests/ -v --cov=apps/api/skillhub --cov=apps/api/skillhub_flask --cov-fail-under=80
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 [tasks."quality-gate:web"]
 description = "Web-only quality gate"
@@ -317,7 +322,6 @@ echo -n "pip:            " && pip --version
 echo -n "docker:         " && docker --version
 echo -n "docker compose: " && docker compose version
 echo -n "psql:           " && (psql --version 2>/dev/null || echo "not found (optional)")
-echo -n "redis-cli:      " && (redis-cli --version 2>/dev/null || echo "not found (optional)")
 echo -n "mise:           " && mise --version
 echo ""
 
@@ -339,7 +343,7 @@ pip install -e apps/api[dev] -e apps/mcp-server[dev] -e libs/db[dev] -e libs/pyt
 echo ""
 
 echo "--- Starting Docker containers ---"
-docker compose up -d postgres redis
+docker compose up -d postgres
 echo ""
 
 echo "--- Waiting for PostgreSQL to be healthy ---"
@@ -428,12 +432,12 @@ echo "=== All formatting complete ==="
 description = "Run all type checks (python + typescript)"
 run = """
 echo "=== Python Type Check ==="
-mypy apps/api/skillhub/ --strict
+mypy apps/api/skillhub/ apps/api/skillhub_flask/ --strict
 echo "=== TypeScript Type Check ==="
 npx tsc --noEmit -p apps/web/tsconfig.json
 echo "=== All type checks complete ==="
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Utility Tasks ────────────────────────────────────────────────────────────
 
@@ -519,7 +523,7 @@ run = """
 echo "=== Generating Docs Artifacts ==="
 echo ""
 echo "--- OpenAPI spec ---"
-python -c "from skillhub.main import create_app; import json; app=create_app(); print(json.dumps(app.openapi(), indent=2))" > specs/openapi.json
+python -c "from skillhub_flask.app import create_app; import json; app=create_app(); print(json.dumps(app.spec, indent=2))" > specs/openapi.json
 echo "  Written to specs/openapi.json"
 echo ""
 echo "--- Schema dump ---"
@@ -532,17 +536,17 @@ echo "  Written to libs/shared-types/src/api.generated.ts"
 echo ""
 echo "Docs generation complete."
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Development Workflow Tasks ───────────────────────────────────────────────
 
 [tasks."dev:all"]
-description = "Start all dev servers (api + web + mcp) in background"
+description = "Start all dev servers (api + web + mcp + docs) in background"
 run = """
 echo "=== Starting all dev servers ==="
 
 # Kill any processes occupying required ports
-for port in 8000 5173 8001; do
+for port in 8000 5173 5174 8001; do
   pids=$(lsof -ti :$port 2>/dev/null || true)
   if [ -n "$pids" ]; then
     echo "  Killing process(es) on port $port: $pids"
@@ -551,22 +555,26 @@ for port in 8000 5173 8001; do
   fi
 done
 
-uvicorn skillhub.main:app --reload --host 0.0.0.0 --port 8000 --app-dir apps/api </dev/null &
+flask --app skillhub_flask.app:create_app run --reload --host 0.0.0.0 --port 8000 </dev/null &
 API_PID=$!
 (cd apps/web && npx vite) </dev/null &
 WEB_PID=$!
 (cd apps/mcp-server && python -m skillhub_mcp.server) </dev/null &
 MCP_PID=$!
+(cd apps/docs && npx vitepress dev src --port 5174) </dev/null &
+DOCS_PID=$!
 echo ""
-echo "  API server PID: $API_PID (port 8000)"
-echo "  Web server PID: $WEB_PID"
-echo "  MCP server PID: $MCP_PID"
+echo "  API server PID:  $API_PID (port 8000)"
+echo "  Web server PID:  $WEB_PID (port 5173)"
+echo "  Docs server PID: $DOCS_PID (port 5174)"
+echo "  MCP server PID:  $MCP_PID"
 echo ""
 echo "  Run 'mise run dev:stop' to stop all servers"
 echo ""
 echo "$API_PID" > .dev-pids
 echo "$WEB_PID" >> .dev-pids
 echo "$MCP_PID" >> .dev-pids
+echo "$DOCS_PID" >> .dev-pids
 wait
 """
 env = { PYTHONPATH = "apps/api:apps/mcp-server:libs/db:libs/python-common" }
@@ -585,7 +593,7 @@ if [ -f .dev-pids ]; then
   echo "All dev servers stopped."
 else
   echo "No .dev-pids file found. Attempting to kill known processes..."
-  pkill -f "uvicorn skillhub.main:app" 2>/dev/null && echo "  Stopped API server" || true
+  pkill -f "flask.*skillhub_flask" 2>/dev/null && echo "  Stopped API server" || true
   pkill -f "skillhub_mcp.server" 2>/dev/null && echo "  Stopped MCP server" || true
   echo "Done."
 fi
@@ -606,7 +614,7 @@ run = """
 echo "=== Smoke Test ==="
 echo ""
 echo "Starting API server..."
-uvicorn skillhub.main:app --host 0.0.0.0 --port 8000 --app-dir apps/api &
+flask --app skillhub_flask.app:create_app run --host 0.0.0.0 --port 8000 &
 API_PID=$!
 sleep 3
 
@@ -622,7 +630,7 @@ else
   exit 1
 fi
 """
-env = { PYTHONPATH = "apps/api:apps/fast-api:libs/db:libs/python-common" }
+env = { PYTHONPATH = "apps/api:libs/db:libs/python-common" }
 
 # ─── Tracing ──────────────────────────────────────────────────────────────────
 
@@ -653,25 +661,25 @@ else
 fi
 """
 
-# ─── Worker Tasks ────────────────────────────────────────────────────────────
+# ─── Worker / Background Tasks (NOT YET PORTED) ───────────────────────────────
 
 [tasks."worker:start"]
-description = "Start ARQ worker"
-run = "cd apps/api && python -m arq skillhub.worker.WorkerSettings"
+description = "Start ARQ worker (NOT YET PORTED — requires Flask worker implementation)"
+run = "echo 'ERROR: Worker not yet ported to Flask. See migration/flask-port branch.' && exit 1"
 
 [tasks."db:aggregate"]
-description = "Manually run daily metrics aggregation"
-run = "cd apps/api && python -c \"import asyncio; from skillhub.worker import aggregate_daily_metrics; print(asyncio.run(aggregate_daily_metrics({})))\""
+description = "Manually run daily metrics aggregation (NOT YET PORTED)"
+run = "echo 'ERROR: Worker not yet ported to Flask.' && exit 1"
 
 [tasks."export:clean"]
-description = "Clean expired export files"
-run = "cd apps/api && python -c \"import asyncio; from skillhub.worker import clean_expired_exports; print(asyncio.run(clean_expired_exports({})))\""
+description = "Clean expired export files (NOT YET PORTED)"
+run = "echo 'ERROR: Worker not yet ported to Flask.' && exit 1"
 
 # ─── Security Tasks ──────────────────────────────────────────────────────────
 
 [tasks."security:scan"]
 description = "Run bandit security scan on Python code"
-run = "bandit -r apps/api/skillhub/ apps/mcp-server/skillhub_mcp/ libs/db/skillhub_db/ libs/python-common/ -ll"
+run = "bandit -r apps/api/skillhub/ apps/api/skillhub_flask/ apps/mcp-server/skillhub_mcp/ libs/db/skillhub_db/ libs/python-common/ -ll"
 
 [tasks."security:audit"]
 description = "Run npm audit on web dependencies"

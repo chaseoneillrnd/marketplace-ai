@@ -228,13 +228,13 @@ describe('SkillDetailView', () => {
 
   // --- Install Button State ---
 
-  it('shows "Sign in to Install" when not authenticated', async () => {
+  it('shows "Sign in to Add" when not authenticated', async () => {
     mockFetch.mockImplementation(mockFetchDefault());
 
     render(<SkillDetailView />, { wrapper });
 
     await waitFor(() => {
-      expect(screen.getByText('Sign in to Install')).toBeInTheDocument();
+      expect(screen.getByText('Sign in to Add')).toBeInTheDocument();
     });
   });
 

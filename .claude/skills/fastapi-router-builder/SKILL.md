@@ -1,52 +1,50 @@
 ---
-name: fastapi-router-builder
-description: Use when creating new FastAPI routers in apps/api/skillhub/routers/
+name: flask-blueprint-builder
+description: Use when creating new Flask blueprints in apps/api/skillhub_flask/blueprints/
 ---
 
-# FastAPI Router Builder
+# Flask Blueprint Builder
 
 ## Checklist
 
-1. Create router file in `apps/api/skillhub/routers/{name}.py`
+1. Create blueprint file in `apps/api/skillhub_flask/blueprints/{name}.py`
 2. Create schemas in `apps/api/skillhub/schemas/{name}.py`
 3. Create service in `apps/api/skillhub/services/{name}.py`
-4. Register router in `apps/api/skillhub/main.py`
+4. Register blueprint in `apps/api/skillhub_flask/app.py`
 5. Create tests in `apps/api/tests/test_{name}.py`
 
-## Router Pattern
+## Blueprint Pattern
 
 ```python
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from skillhub.dependencies import get_db, get_current_user
+from flask import Blueprint, g, jsonify
+from skillhub_flask.db import get_db
 
-router = APIRouter(prefix="/api/v1/{name}", tags=["{name}"])
+bp = Blueprint("{name}", __name__, url_prefix="/api/v1/{name}")
 
-@router.get("/")
-def list_items(
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
-):
-    return service.list_items(db, user)
+@bp.route("/", methods=["GET"])
+def list_items():
+    db = get_db()
+    user = g.current_user
+    return jsonify(service.list_items(db, user))
 ```
 
-## Registration in main.py
+## Registration in app.py
 
 ```python
-from skillhub.routers import {name}
-app.include_router({name}.router)
+from skillhub_flask.blueprints import {name}
+app.register_blueprint({name}.bp)
 ```
 
 ## Service Layer Pattern
 
 - Accept `db: Session` as first param
-- Raise `HTTPException` for errors
+- Use `abort(status_code, description=...)` for errors
 - Write audit_log entries for mutations
 - Use eager loading to prevent N+1
 
 ## References
 
-- Existing router: `apps/api/skillhub/routers/skills.py`
+- Existing blueprint: `apps/api/skillhub_flask/blueprints/skills.py`
 - Service pattern: `apps/api/skillhub/services/skills.py`
-- Dependencies: `apps/api/skillhub/dependencies.py`
+- Auth (before_request): `apps/api/skillhub_flask/blueprints/auth.py`
 - Schemas: `apps/api/skillhub/schemas/skill.py`

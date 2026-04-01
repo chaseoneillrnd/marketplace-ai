@@ -69,7 +69,7 @@ def post_install(slug: str) -> tuple:
     current_user = g.current_user
     user_id = UUID(current_user["user_id"])
     user_division = current_user.get("division", "")
-    body = InstallRequest(**request.get_json())
+    body = InstallRequest.model_validate(request.get_json(force=True) or {})
     db = get_db()
     try:
         result = install_skill(
@@ -200,7 +200,7 @@ def post_review(slug: str) -> tuple:
     """Create a review. 409 if already reviewed."""
     current_user = g.current_user
     user_id = UUID(current_user["user_id"])
-    body = ReviewCreateRequest(**request.get_json())
+    body = ReviewCreateRequest.model_validate(request.get_json(force=True) or {})
     db = get_db()
     try:
         result = create_review(db, slug, user_id, body.rating, body.body)
@@ -216,7 +216,7 @@ def patch_review(slug: str, review_id: UUID) -> tuple:
     """Update a review. Owner only."""
     current_user = g.current_user
     user_id = UUID(current_user["user_id"])
-    body = ReviewUpdateRequest(**request.get_json())
+    body = ReviewUpdateRequest.model_validate(request.get_json(force=True) or {})
     db = get_db()
     try:
         result = update_review(
@@ -234,7 +234,7 @@ def post_review_vote(slug: str, review_id: UUID) -> tuple:
     """Vote on a review (helpful/unhelpful)."""
     current_user = g.current_user
     user_id = UUID(current_user["user_id"])
-    body = ReviewVoteRequest(**request.get_json())
+    body = ReviewVoteRequest.model_validate(request.get_json(force=True) or {})
     db = get_db()
     try:
         vote_on_review(db, slug, review_id, user_id, body.vote)
@@ -274,7 +274,7 @@ def post_comment(slug: str) -> tuple:
     """Create a comment on a skill."""
     current_user = g.current_user
     user_id = UUID(current_user["user_id"])
-    body = CommentCreateRequest(**request.get_json())
+    body = CommentCreateRequest.model_validate(request.get_json(force=True) or {})
     db = get_db()
     try:
         result = create_comment(db, slug, user_id, body.body)
@@ -304,7 +304,7 @@ def post_reply(slug: str, comment_id: UUID) -> tuple:
     """Reply to a comment."""
     current_user = g.current_user
     user_id = UUID(current_user["user_id"])
-    body = ReplyCreateRequest(**request.get_json())
+    body = ReplyCreateRequest.model_validate(request.get_json(force=True) or {})
     db = get_db()
     try:
         result = create_reply(db, slug, comment_id, user_id, body.body)

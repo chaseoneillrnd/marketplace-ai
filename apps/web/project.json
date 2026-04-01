@@ -1,0 +1,24 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "web",
+  "sourceRoot": "apps/web/src",
+  "projectType": "application",
+  "tags": ["scope:app", "type:web"],
+  "targets": {
+    "dev": {
+      "command": "vite"
+    },
+    "build": {
+      "command": "tsc && vite build"
+    },
+    "test": {
+      "command": "vitest run"
+    },
+    "lint": {
+      "command": "eslint src/"
+    },
+    "typecheck": {
+      "command": "tsc --noEmit"
+    }
+  }
+}

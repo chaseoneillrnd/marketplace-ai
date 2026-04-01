@@ -1,6 +1,6 @@
 """Export endpoints — admin only.
 
-Bug fixes applied vs. FastAPI source:
+Bug fixes applied during Flask migration:
 - Bug #1: Accept JSON body {scope, format, start_date?, end_date?} NOT query params
 - Bug #2: Return "download_url" NOT "file_path" in GET response
 - Bug #3: Return status "pending" NOT "queued" in responses
@@ -13,11 +13,11 @@ from typing import Any
 from uuid import UUID
 
 from flask import Blueprint, g, jsonify, request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from skillhub_flask.db import get_db
 
-from skillhub.services.exports import get_export_status, request_export
+from skillhub.services.exports import get_export_status, request_export, run_export_sync
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +75,25 @@ def create_export() -> tuple:
             user_id=UUID(g.current_user["user_id"]),
             scope=body.scope,
             format=body.format,
+            filters={
+                k: v
+                for k, v in {
+                    "start_date": body.start_date,
+                    "end_date": body.end_date,
+                }.items()
+                if v is not None
+            },
         )
     except ValueError as e:
         return jsonify({"detail": str(e)}), 429
+
+    # Run synchronously so the job is complete before we respond.
+    run_export_sync(db, UUID(result["id"]))
+
+    # Re-fetch updated status so response reflects completed state.
+    updated = get_export_status(db, UUID(result["id"]))
+    if updated:
+        result = updated
 
     result = _fix_status(result)
     result = _fix_download_url(result)

@@ -162,7 +162,7 @@ export function SubmissionStatusTracker({ displayId }: Props) {
                     : gate.status === 'failed'
                       ? C.red ?? '#ff3b30'
                       : gate.status === 'in_progress'
-                        ? C.yellow ?? '#ffd60a'
+                        ? C.amber ?? '#ffd60a'
                         : C.dim,
                 fontFamily: "'JetBrains Mono',monospace",
               }}

@@ -71,7 +71,7 @@ skill files. Platform Team governs quality. Security Team governs safety.
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
 | Frontend | React 18 + Vite + TypeScript | Existing mockup, fast dev |
-| Backend | FastAPI (Python 3.12) | Async, auto OpenAPI, type-safe |
+| Backend | Flask/APIFlask (Python 3.12) | Lightweight, APIFlask auto-OpenAPI, well-understood |
 | MCP Server | Python + mcp SDK | Native Claude integration |
 | Database | PostgreSQL 16 | JSON support, full-text search |
 | Cache | Redis 7 | Sessions, rate limiting |
@@ -128,7 +128,7 @@ skill files. Platform Team governs quality. Security Team governs safety.
 skillhub/
 ├── apps/
 │   ├── web/              React + Vite + TypeScript
-│   ├── api/              FastAPI
+│   ├── api/              Flask/APIFlask
 │   └── mcp-server/       SkillHub MCP server
 ├── libs/
 │   ├── ui/               Shared React components
@@ -202,8 +202,8 @@ skillhub/
 
 ## 9. MCP Server
 
-- Exposes 8 tools: search_skills, get_skill, install_skill, update_skill, list_installed, fork_skill, submit_skill, get_submission_status
-- Delegates all data operations to FastAPI
+- Exposes 9 tools: search_skills, get_skill, install_skill, update_skill, uninstall_skill, list_installed, fork_skill, submit_skill, get_submission_status
+- Delegates all data operations to the Flask API
 - Division enforcement: validates JWT claims against skill.divisions before writing SKILL.md
 - Local dev: http://localhost:8001/mcp
 - Production: https://skillhub.acme.com/mcp (same config, different host)

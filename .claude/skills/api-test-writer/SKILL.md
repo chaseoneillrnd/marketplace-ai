@@ -9,14 +9,16 @@ description: Use when writing API tests in apps/api/tests/
 
 ```python
 import pytest
-from fastapi.testclient import TestClient
-from skillhub.main import create_app
+from skillhub_flask.app import create_app
 
 @pytest.fixture
-def client(db_session):
-    app = create_app()
-    app.dependency_overrides[get_db] = lambda: db_session
-    return TestClient(app)
+def app(db_session):
+    app = create_app(testing=True, session_factory=lambda: db_session)
+    yield app
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
 @pytest.fixture
 def auth_headers():
@@ -30,7 +32,7 @@ def auth_headers():
 def test_list_skills(client, auth_headers):
     response = client.get("/api/v1/skills", headers=auth_headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.get_json()
     assert "items" in data
     assert "total" in data
 
