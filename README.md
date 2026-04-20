@@ -110,6 +110,15 @@ specs/                  # OpenAPI spec, schema dumps
 mise.toml               # Task runner config
 docker-compose.yml      # Local dev services
 nx.json                 # NX workspace config
-```
-[https://claude.ai/share/a45b37b3-3765-496d-9a7c-96cfe221112d
-](https://docs.google.com/presentation/d/1I5tiGXp7dxXKWdgJCnxrRwT0I9SmF-ig/edit?usp=drivesdk&ouid=102060265013781988185&rtpof=true&sd=true)
+A hands-on workshop for developers, analysts, PMs, and anyone who wants to understand what agentic AI looks like in a real codebase — wherever you're starting from.
+Whether you've never opened a terminal or you're already running parallel agent fleets, this session meets you where you are. We'll walk through what it actually takes to make Claude useful in your specific repo — not a demo environment, not a toy project — and show how the same setup that takes a senior engineer minutes can be handed to anyone on the team.
+We'll run live configuration on a real codebase, break down what's happening and why, and leave time for your stack, your questions, and your skepticism.
+No experience required. No ceiling either.
+You'll leave with:
+Four skills you can drop into any repository today
+A clear mental model for what Claude can own, what it should assist with, and what still needs a human
+A configured repo if you bring one
+Answers to the questions you actually have — not the ones the demos usually address
+Date/Time: [TBD]
+Location: [TBD]
+Who: Everyone who touches a codebase or the work that flows through one — developers, analysts, PMs, QA, architects, and the genuinely curious
