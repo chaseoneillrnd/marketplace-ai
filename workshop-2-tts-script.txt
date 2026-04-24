@@ -1,0 +1,151 @@
+Three weeks ago, we built one skill. Prime-context. One session, one ticket, one Claude. That was micro. Today is macro.
+
+Quick recap for anyone who missed Workshop 1. We built a single file that Claude loads at the start of a session. It tells Claude what matters for that specific ticket. We called it prime-context. It worked. That was one session, one ticket. One brief, one moment.
+
+Today we configure the repository itself. Same idea, bigger scope. One brief that Claude reads every session, forever, before you type anything.
+
+Now watch this.
+
+I am going to ask Claude something any new engineer on my team could answer in a minute. In an unconfigured repo. Real repo. Real Claude.
+
+The question is, how does our authentication work?
+
+Watch what Claude does.
+
+Claude asks what framework we are using. Claude asks what auth library is in the codebase. Claude guesses at OAuth. Claude gives a generic explainer that would fit any Node application on the planet. Claude does not know our codebase. Claude does not know our patterns. Claude does not know us.
+
+Show of hands. Who has seen Claude do exactly this in your repo?
+
+Yep. All of you.
+
+Here is the thing. Claude is not broken. Claude is running without a map. Every session starts cold. It rediscovers your architecture every single time.
+
+Let me put a number on it.
+
+Claude has a 200,000 token context window. In that repo, roughly 2,000 tokens of it were relevant signal. That is one percent. Claude has been running at one percent efficiency in your repository.
+
+One percent.
+
+So the question is, how do we get from one percent to something useful? And the answer is not prompt engineering. The answer is not better questions. The answer is not a bigger model.
+
+The answer is repository configuration. Four concepts. Sixty minutes. And by the end of this talk, that same Claude, in that same repo, will answer that same question correctly and immediately. Watch for that moment.
+
+Here is concept one.
+
+In Workshop 1 we primed one session. One brief. Today we make that brief permanent.
+
+The file is called CLAUDE dot M D. Just those letters. It sits at the root of your repository. Claude reads it every single session before you type anything.
+
+It is advisory. It is followed about eighty percent of the time. For anything that needs one hundred percent, we have hooks. Hooks are Workshop 3.
+
+CLAUDE dot M D has three questions to answer. Why does this project exist. What is it built with. How do we work on it. One sentence for why. One line for what. Four commands for how.
+
+That is it. That is the skeleton.
+
+How big should it be? Depends on your repo. A fresh project gets thirty to fifty lines. An active project gets eighty to one hundred twenty. A legacy codebase gets up to one hundred fifty. Hard ceiling at one hundred fifty. If you hit the ceiling, move something to another file, which we will get to.
+
+Now. Here is the section that changes lives.
+
+It is called DO NOT USE.
+
+Every repository has rules that live in Slack messages. Your senior engineer types them six times a week. You know the ones. Things like, do not use UserService dot findAll because it loads every record. Use UserService dot findPaginated instead. Or, do not put database queries directly in controllers, they go through the service layer. Or, the legacy directory is being migrated, do not touch it.
+
+Those rules. Your senior engineer types them six times a week. Put them in CLAUDE dot M D under a section called DO NOT USE. Now Claude reads them every session. Now your senior engineer types them zero times a week.
+
+Let me pause here.
+
+Turn to the person next to you. Name one rule you have had to tell a junior engineer more than twice this month. Just one. Thirty seconds. Go.
+
+Okay. Let us hear one. Anyone. Microphone.
+
+Good. That goes in your CLAUDE dot M D. Right in the DO NOT USE section. You just wrote your first repository configuration.
+
+Moving to concept two.
+
+Before you teach Claude what matters, tell it what to ignore.
+
+There is a file called dot claudeignore. Same syntax as dot gitignore. And here is why it matters.
+
+Your package lock file. Just that one file. Thirty thousand to eighty thousand tokens. By itself. A single file eating somewhere between fifteen and forty percent of Claude's entire context window before Claude has read a single line of your actual code.
+
+Your node modules directory. Your build output. Your test snapshots. Your environment files. Your lock files. Your media assets. Every single one of them in the window unless you say otherwise.
+
+There are three categories to filter. Secrets. Your env files, your key files, your P E M files. Claude should never see these, ever. Dependencies. Node modules, Python cache, vendor directories. Claude does not need to read libraries you did not write. Media. Images, fonts, P D Fs, compiled binaries. Claude cannot parse them anyway.
+
+That is it. Three sections. The full template is in the guide.
+
+Here is the before and after.
+
+This is the context window before I add a claudeignore file. Nineteen percent consumed before I type anything. Now I add the file. Restart the session. Four percent. Same repo. Same Claude. Same everything, except one new file.
+
+A well-configured claudeignore saves thirty to fifty percent of your token budget. Just by telling Claude what not to look at.
+
+Concept three.
+
+Every repo has gotchas that live in Slack messages, hallway conversations, and the heads of people who have been there three years. Things like, do not run the tests in parallel because they share a database. Or, port 3001 is reserved for the mock server during integration runs. Or, the legacy directory is not deprecated, it is just a module name that happens to be called legacy.
+
+Every engineer who ever onboarded to this team has lost thirty minutes to that last one. Thirty minutes times the number of people who have joined your team times the number of gotchas you have. That is a real number. That is real time.
+
+Put them in a file. Name the file nuance dot M D. It lives in dot claude slash org. Claude reads it every session.
+
+Now Claude is a three-year veteran on day one.
+
+The template has three sections. Things That Will Surprise You. Why We Did The Unconventional Thing. Migration In Progress. Populate them from your own Slack history. I promise you the material is there.
+
+There are sibling files in dot claude slash org for team procedures, deviations from standards, and contact ownership. They are in the guide.
+
+Now. I want you to do something.
+
+Silent beat. What is your team's version of the legacy directory story? The thing that every new person trips on. Do not answer out loud. Hold it in your head.
+
+Five seconds.
+
+Good. That goes in your nuance dot M D.
+
+Now watch this.
+
+Same repo as the beginning of this talk. Ten minutes of configuration between then and now. Same question. How does our authentication work?
+
+Watch.
+
+Claude names the authentication library. Claude cites the actual file path in our codebase. Claude describes the session pattern. Claude mentions the known edge case from nuance dot M D. Claude pulls the reasoning from DECISIONS dot M D, which is the next concept.
+
+No hedging. No clarifying questions. No generic OAuth explainer.
+
+Same Claude.
+
+Concept four.
+
+Every technical decision you make today, you will forget the reasoning for in six months. Not might forget. Will forget. Your teammate will forget faster. Your new hire will have no idea.
+
+An A D R. Architecture Decision Record. Four paragraphs. Context. Decision. Consequences. Alternatives considered.
+
+Context is one sentence. What problem forced a decision. Decision is one sentence. What we chose. Consequences is two lists. What this enables and what this costs. Alternatives considered is a table. Option we looked at. Why we rejected it.
+
+That last part. Alternatives considered. That is the part people skip. That is also the part that saves your future self from relitigating the same decision next quarter.
+
+Here is the move. When the decision is fresh, write it down. Four paragraphs. Commit it to docs slash agentic slash DECISIONS dot M D. Claude reads the file. Claude now knows why the code is the way it is.
+
+One more thing about A D Rs. This is not an engineer-only concept. If you are a product manager, write A D Rs for your product decisions. If you are an analyst, write them for your methodology choices. If you make decisions that compound, write them down in this format. Claude will read them. So will the next human who inherits your work.
+
+Now the payoff.
+
+Everything we just built. It stays current automatically.
+
+There is a skill called agentic repo quality sync. Add it to your continuous integration pipeline. When your repo changes, your Claude configuration updates with it. Your codebase map regenerates. Your stale docs flag themselves. Your rules file stays small.
+
+Zero ongoing maintenance. One command in C I.
+
+And here is what happened to the repo we demoed. Started at two out of twelve checks passing. Ten minutes of work. Eleven out of twelve. And it stays there.
+
+That is the entire talk. Four concepts. CLAUDE dot M D. Dot claudeignore. Nuance dot M D. A D Rs. The root brain, the filter, the tribal knowledge, and the reasoning.
+
+Workshop 3 has five more. Codebase maps, agentic docs, progressive disclosure, nested CLAUDE dot M D files, and hooks. One line each. Details on the next slide. Save the questions for that talk.
+
+Everything I showed you today is in the guide. Twelve hundred lines. Every command. Every template. Every number. You can run the scaffold skill against your own repo this afternoon and have all of this, minus your specific nuance file, by dinner.
+
+One more thing.
+
+This deck. The slides behind me. Every one of them. Claude generated them. The prompt is in the guide. The method teaches itself.
+
+Thank you. Workshop 3 is in four weeks.
